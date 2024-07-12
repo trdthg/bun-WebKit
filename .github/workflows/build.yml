@@ -10,93 +10,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  macos:
-    name: macOS
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
-    strategy:
-      matrix:
-        include:
-          - runner: macos-13-large
-            lto_flag: ""
-            cpu: haswell
-            label: bun-webkit-macos-amd64-debug
-            brew_prefix: /usr/local/opt
-            package_json_arch: "x64"
-            CMAKE_BUILD_TYPE: Debug
-          - runner: macos-13-xlarge
-            lto_flag: ""
-            cpu: native
-            label: bun-webkit-macos-arm64-debug
-            brew_prefix: /opt/homebrew/opt
-            package_json_arch: "arm64"
-            CMAKE_BUILD_TYPE: Debug
-          - runner: macos-13-large
-            lto_flag: -flto='full'
-            cpu: haswell
-            label: bun-webkit-macos-amd64-lto
-            brew_prefix: /usr/local/opt
-            package_json_arch: "x64"
-            CMAKE_BUILD_TYPE: Release
-          - runner: macos-13-large
-            lto_flag: ""
-            cpu: haswell
-            label: bun-webkit-macos-amd64
-            brew_prefix: /usr/local/opt
-            package_json_arch: "x64"
-            CMAKE_BUILD_TYPE: Release
-          - runner: macos-13-xlarge
-            lto_flag: -flto='full'
-            cpu: native
-            label: bun-webkit-macos-arm64-lto
-            brew_prefix: /opt/homebrew/opt
-            package_json_arch: "arm64"
-            CMAKE_BUILD_TYPE: Release
-          - runner: macos-13-xlarge
-            lto_flag: ""
-            cpu: native
-            label: bun-webkit-macos-arm64
-            brew_prefix: /opt/homebrew/opt
-            package_json_arch: "arm64"
-            CMAKE_BUILD_TYPE: Release
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /*
-            !LayoutTests/
-            !JSTests/
-      - name: PATH
-        env:
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
-          HOMEBREW_NO_AUTO_UPDATE: 1
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-          HOMEBREW_NO_ANALYTICS_THIS_RUN: 1
-        run: |
-          echo "${{matrix.brew_prefix}}/llvm@16/bin" >> $GITHUB_PATH
-          brew install llvm@16 python icu4c ninja -f --overwrite
-          brew link llvm@16 -f --overwrite
-      - name: Run
-        env:
-          ICU_INCLUDE_DIRS: ${{matrix.brew_prefix}}/icu4c/include
-          LDFLAGS: "${{env.LDFLAGS}} -L${{matrix.brew_prefix}}/llvm/lib/c++ -Wl,-rpath,${{matrix.brew_prefix}}/llvm/lib/c++"
-          CC: "${{matrix.brew_prefix}}/llvm@16/bin/clang"
-          CXX: "${{matrix.brew_prefix}}/llvm@16/bin/clang++"
-          CMAKE_C_COMPILER: "${{matrix.brew_prefix}}/llvm@16/bin/clang"
-          CMAKE_CXX_COMPILER: "${{matrix.brew_prefix}}/llvm@16/bin/clang++"
-          CMAKE_C_FLAGS: "-fuse-ld=lld -fno-exceptions ${{matrix.lto_flag}} -fvisibility=hidden -fvisibility-inlines-hidden -O3 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
-          CMAKE_CXX_FLAGS: "-fuse-ld=lld -I${{matrix.brew_prefix}}/llvm/include -fno-exceptions ${{matrix.lto_flag}} -fvisibility=hidden -fvisibility-inlines-hidden -O3 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
-          CMAKE_OSX_DEPLOYMENT_TARGET: "12.0"
-          CMAKE_BUILD_TYPE: ${{matrix.CMAKE_BUILD_TYPE}}
-          PACKAGE_JSON_ARCH: ${{matrix.package_json_arch}}
-          PACKAGE_JSON_LABEL: ${{matrix.label}}
-        run: GITHUB_REPOSITORY=$GITHUB_REPOSITORY bash mac-release.bash
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{matrix.label}}
-          path: ${{runner.temp}}/bun-webkit.tar.gz
-
   linux:
     name: Linux
     runs-on: ${{matrix.os}}
@@ -133,6 +46,11 @@ jobs:
             os: big-ubuntu
             package_json_arch: "x64"
             CMAKE_BUILD_TYPE: "Release"
+          - lto_flag: ""
+            label: bun-webkit-linux-riscv64
+            os: revyos
+            package_json_arch: "riscv64"
+            CMAKE_BUILD_TYPE: "Release"
 
     timeout-minutes: 90
     steps:
@@ -163,51 +81,6 @@ jobs:
           name: ${{matrix.label}}
           path: ${{runner.temp}}/bun-webkit.tar.gz
 
-  windows:
-    strategy:
-      matrix:
-        include:
-          - runner: windows
-            build-type: Release
-            arch: amd64
-            suffix: ""
-          - runner: windows
-            build-type: Debug
-            arch: amd64
-            suffix: -debug
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
-    steps:
-      - name: Install Scoop
-        run: |
-          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-          Join-Path (Resolve-Path ~).Path "scoop\shims" >> $Env:GITHUB_PATH
-      - name: Install LLVM and Ninja
-        run: |
-          scoop install ninja
-          scoop install llvm@18.1.8
-          Join-Path (Resolve-Path ~).Path "scoop\apps\llvm\current\bin" >> $Env:GITHUB_PATH
-      - uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /*
-            !LayoutTests/
-            !JSTests/
-      - name: Build WebKit
-        run: |
-          $env:Path = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\;" + $env:Path
-          $env:WEBKIT_OUTPUT_DIR = "bun-webkit"
-          $env:BUN_WEBKIT_VERSION = "${{ github.sha }}"
-          $env:CMAKE_BUILD_TYPE = "${{matrix.build-type}}"
-          ./windows-release.ps1
-      - uses: actions/upload-artifact@v3
-        with:
-          name: bun-webkit-windows-${{ matrix.arch }}${{ matrix.suffix }}
-          path: bun-webkit.tar.gz
-
   release:
     name: release
     permissions:
@@ -216,82 +89,20 @@ jobs:
     timeout-minutes: 90
     needs:
       - linux
-      - macos
-      - windows
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: bun-webkit-linux-amd64
-          path: ${{runner.temp}}/bun-webkit-linux-amd64
+          name: bun-webkit-linux-riscv64
+          path: ${{runner.temp}}/bun-webkit-linux-riscv64
       - uses: actions/download-artifact@v3
         with:
-          name: bun-webkit-linux-arm64
-          path: ${{runner.temp}}/bun-webkit-linux-arm64
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-linux-amd64-debug
-          path: ${{runner.temp}}/bun-webkit-linux-amd64-debug
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-linux-arm64-debug
-          path: ${{runner.temp}}/bun-webkit-linux-arm64-debug
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-macos-arm64
-          path: ${{runner.temp}}/bun-webkit-macos-arm64
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-macos-arm64-debug
-          path: ${{runner.temp}}/bun-webkit-macos-arm64-debug
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-macos-arm64-lto
-          path: ${{runner.temp}}/bun-webkit-macos-arm64-lto
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-macos-amd64
-          path: ${{runner.temp}}/bun-webkit-macos-amd64
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-macos-amd64-debug
-          path: ${{runner.temp}}/bun-webkit-macos-amd64-debug
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-macos-amd64-lto
-          path: ${{runner.temp}}/bun-webkit-macos-amd64-lto
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-linux-amd64-lto
-          path: ${{runner.temp}}/bun-webkit-linux-amd64-lto
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-linux-arm64-lto
-          path: ${{runner.temp}}/bun-webkit-linux-arm64-lto
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-windows-amd64
-          path: ${{runner.temp}}/bun-webkit-windows-amd64
-      - uses: actions/download-artifact@v3
-        with:
-          name: bun-webkit-windows-amd64-debug
-          path: ${{runner.temp}}/bun-webkit-windows-amd64-debug
+          name: bun-webkit-linux-riscv64
+          path: ${{runner.temp}}/bun-webkit-linux-riscv64
 
       - name: Rename files
         run: |
-          mv ${{runner.temp}}/bun-webkit-linux-amd64/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-linux-amd64.tar.gz
-          mv ${{runner.temp}}/bun-webkit-linux-arm64/bun-webkit.tar.gz  ${{runner.temp}}/bun-webkit-linux-arm64.tar.gz
-          mv ${{runner.temp}}/bun-webkit-macos-arm64/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-macos-arm64.tar.gz
-          mv ${{runner.temp}}/bun-webkit-macos-amd64/bun-webkit.tar.gz  ${{runner.temp}}/bun-webkit-macos-amd64.tar.gz
-          mv ${{runner.temp}}/bun-webkit-linux-amd64-debug/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-linux-amd64-debug.tar.gz
-          mv ${{runner.temp}}/bun-webkit-linux-arm64-debug/bun-webkit.tar.gz  ${{runner.temp}}/bun-webkit-linux-arm64-debug.tar.gz
-          mv ${{runner.temp}}/bun-webkit-macos-arm64-debug/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-macos-arm64-debug.tar.gz
-          mv ${{runner.temp}}/bun-webkit-macos-amd64-debug/bun-webkit.tar.gz  ${{runner.temp}}/bun-webkit-macos-amd64-debug.tar.gz
-          mv ${{runner.temp}}/bun-webkit-macos-arm64-lto/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-macos-arm64-lto.tar.gz
-          mv ${{runner.temp}}/bun-webkit-macos-amd64-lto/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-macos-amd64-lto.tar.gz
-          mv ${{runner.temp}}/bun-webkit-linux-arm64-lto/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-linux-arm64-lto.tar.gz
-          mv ${{runner.temp}}/bun-webkit-linux-amd64-lto/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-linux-amd64-lto.tar.gz
-          mv ${{runner.temp}}/bun-webkit-windows-amd64/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-windows-amd64.tar.gz
-          mv ${{runner.temp}}/bun-webkit-windows-amd64-debug/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-windows-amd64-debug.tar.gz
+          mv ${{runner.temp}}/bun-webkit-linux-riscv64/bun-webkit.tar.gz ${{runner.temp}}/bun-webkit-linux-riscv64.tar.gz
+      
       - name: Release
         uses: softprops/action-gh-release@v1
         id: release
@@ -299,17 +110,4 @@ jobs:
           generate_release_notes: true
           tag_name: "autobuild-${{github.sha}}"
           files: |
-            ${{runner.temp}}/bun-webkit-linux-amd64-debug.tar.gz
-            ${{runner.temp}}/bun-webkit-linux-arm64-debug.tar.gz
-            ${{runner.temp}}/bun-webkit-macos-arm64-debug.tar.gz
-            ${{runner.temp}}/bun-webkit-macos-amd64-debug.tar.gz
-            ${{runner.temp}}/bun-webkit-linux-amd64.tar.gz
-            ${{runner.temp}}/bun-webkit-linux-arm64.tar.gz
-            ${{runner.temp}}/bun-webkit-macos-arm64.tar.gz
-            ${{runner.temp}}/bun-webkit-macos-amd64.tar.gz
-            ${{runner.temp}}/bun-webkit-linux-amd64-lto.tar.gz
-            ${{runner.temp}}/bun-webkit-linux-arm64-lto.tar.gz
-            ${{runner.temp}}/bun-webkit-macos-arm64-lto.tar.gz
-            ${{runner.temp}}/bun-webkit-macos-amd64-lto.tar.gz
-            ${{runner.temp}}/bun-webkit-windows-amd64.tar.gz
-            ${{runner.temp}}/bun-webkit-windows-amd64-debug.tar.gz
+            ${{runner.temp}}/bun-webkit-linux-riscv64-debug.tar.gz
