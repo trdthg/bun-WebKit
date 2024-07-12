@@ -27,6 +27,11 @@ if [ "$BUILDKIT_ARCH" == "aarch64" ]; then
     export ARCH=aarch64
 fi
 
+if [ "$BUILDKIT_ARCH" == "riscv64" ]; then
+    export BUILDKIT_ARCH="riscv64"
+    export ARCH=riscv64
+fi
+
 if [ "$BUILDKIT_ARCH" == "armv7l" ]; then
     echo "Unsupported platform: $BUILDKIT_ARCH"
     exit 1
