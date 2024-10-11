@@ -520,8 +520,8 @@ static PageConfiguration::MainFrameCreationParameters mainFrameCreationParameter
     switch (frameType) {
     case Frame::FrameType::Local:
         return PageConfiguration::LocalMainFrameCreationParameters {
-            { [mainFrame = WTFMove(mainFrame), invalidator = WTFMove(invalidator)] (auto& localFrame) mutable {
-                return makeUniqueRef<WebLocalFrameLoaderClient>(localFrame, WTFMove(mainFrame), WTFMove(invalidator));
+            { [mainFrame = WTFMove(mainFrame), invalidator = WTFMove(invalidator)] (auto& localFrame, auto& frameLoader) mutable {
+                return makeUniqueRef<WebLocalFrameLoaderClient>(localFrame, frameLoader, WTFMove(mainFrame), WTFMove(invalidator));
             } },
             initialSandboxFlags
         };
@@ -662,6 +662,9 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #if PLATFORM(COCOA)
 #if HAVE(SANDBOX_STATE_FLAGS)
     auto auditToken = WebProcess::singleton().auditTokenForSelf();
+    auto shouldBlockWebInspector = parameters.store.getBoolValueForKey(WebPreferencesKey::blockWebInspectorInWebContentSandboxKey());
+    if (shouldBlockWebInspector)
+        sandbox_enable_state_flag("BlockWebInspectorInWebContentSandbox", *auditToken);
 #if PLATFORM(IOS)
     auto shouldBlockMobileGestalt = parameters.store.getBoolValueForKey(WebPreferencesKey::blockMobileGestaltInWebContentSandboxKey());
     if (shouldBlockMobileGestalt)
@@ -670,9 +673,14 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     auto shouldBlockMobileAsset = parameters.store.getBoolValueForKey(WebPreferencesKey::blockMobileAssetInWebContentSandboxKey());
     if (shouldBlockMobileAsset)
         sandbox_enable_state_flag("BlockMobileAssetInWebContentSandbox", *auditToken);
+#if PLATFORM(MAC)
+    auto shouldBlockIconServices = parameters.store.getBoolValueForKey(WebPreferencesKey::blockIconServicesInWebContentSandboxKey());
+    if (shouldBlockIconServices)
+        sandbox_enable_state_flag("BlockIconServicesInWebContentSandbox", *auditToken);
     auto shouldBlockOpenDirectory = parameters.store.getBoolValueForKey(WebPreferencesKey::blockOpenDirectoryInWebContentSandboxKey());
     if (shouldBlockOpenDirectory)
         sandbox_enable_state_flag("BlockOpenDirectoryInWebContentSandbox", *auditToken);
+#endif // PLATFORM(MAC)
 #endif // HAVE(SANDBOX_STATE_FLAGS)
     auto shouldBlockIOKit = parameters.store.getBoolValueForKey(WebPreferencesKey::blockIOKitInWebContentSandboxKey())
 #if ENABLE(WEBGL)
@@ -1097,6 +1105,8 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     setLinkDecorationFilteringData(WTFMove(parameters.linkDecorationFilteringData));
     setAllowedQueryParametersForAdvancedPrivacyProtections(WTFMove(parameters.allowedQueryParametersForAdvancedPrivacyProtections));
 #endif
+    if (parameters.windowFeatures)
+        m_page->applyWindowFeatures(*parameters.windowFeatures);
 }
 
 void WebPage::updateAfterDrawingAreaCreation(const WebPageCreationParameters& parameters)
@@ -1117,7 +1127,7 @@ void WebPage::updateAfterDrawingAreaCreation(const WebPageCreationParameters& pa
 
 void WebPage::constructFrameTree(WebFrame& parent, const FrameTreeCreationParameters& treeCreationParameters)
 {
-    auto frame = WebFrame::createRemoteSubframe(*this, parent, treeCreationParameters.frameID, treeCreationParameters.frameName);
+    auto frame = WebFrame::createRemoteSubframe(*this, parent, treeCreationParameters.frameID, treeCreationParameters.frameName, treeCreationParameters.openerFrameID);
     for (auto& parameters : treeCreationParameters.children)
         constructFrameTree(frame, parameters);
 }
@@ -1129,7 +1139,7 @@ void WebPage::createRemoteSubframe(WebCore::FrameIdentifier parentID, WebCore::F
         ASSERT_NOT_REACHED();
         return;
     }
-    WebFrame::createRemoteSubframe(*this, *parentFrame, newChildID, newChildFrameName);
+    WebFrame::createRemoteSubframe(*this, *parentFrame, newChildID, newChildFrameName, std::nullopt);
 }
 
 void WebPage::getFrameInfo(WebCore::FrameIdentifier frameID, CompletionHandler<void(std::optional<FrameInfoData>&&)>&& completionHandler)
@@ -2054,7 +2064,7 @@ void WebPage::loadDidCommitInAnotherProcess(WebCore::FrameIdentifier frameID, st
 
 void WebPage::loadRequest(LoadParameters&& loadParameters)
 {
-    WEBPAGE_RELEASE_LOG(Loading, "loadRequest: navigationID=%" PRIu64 ", shouldTreatAsContinuingLoad=%u, lastNavigationWasAppInitiated=%d, existingNetworkResourceLoadIdentifierToResume=%" PRIu64, loadParameters.navigationID ? loadParameters.navigationID->toUInt64() : 0, static_cast<unsigned>(loadParameters.shouldTreatAsContinuingLoad), loadParameters.request.isAppInitiated(), valueOrDefault(loadParameters.existingNetworkResourceLoadIdentifierToResume).toUInt64());
+    WEBPAGE_RELEASE_LOG(Loading, "loadRequest: navigationID=%" PRIu64 ", shouldTreatAsContinuingLoad=%u, lastNavigationWasAppInitiated=%d, existingNetworkResourceLoadIdentifierToResume=%" PRIu64, loadParameters.navigationID ? loadParameters.navigationID->toUInt64() : 0, static_cast<unsigned>(loadParameters.shouldTreatAsContinuingLoad), loadParameters.request.isAppInitiated(), loadParameters.existingNetworkResourceLoadIdentifierToResume ? loadParameters.existingNetworkResourceLoadIdentifierToResume->toUInt64() : 0);
 
     RefPtr frame = loadParameters.frameIdentifier ? WebProcess::singleton().webFrame(*loadParameters.frameIdentifier) : m_mainFrame.ptr();
     if (!frame) {
@@ -2278,7 +2288,7 @@ void WebPage::reload(WebCore::NavigationIdentifier navigationID, OptionSet<WebCo
 
 void WebPage::goToBackForwardItem(GoToBackForwardItemParameters&& parameters)
 {
-    WEBPAGE_RELEASE_LOG(Loading, "goToBackForwardItem: navigationID=%" PRIu64 ", backForwardItemID=%s, shouldTreatAsContinuingLoad=%u, lastNavigationWasAppInitiated=%d, existingNetworkResourceLoadIdentifierToResume=%" PRIu64, parameters.navigationID.toUInt64(), parameters.backForwardItemID.toString().utf8().data(), static_cast<unsigned>(parameters.shouldTreatAsContinuingLoad), parameters.lastNavigationWasAppInitiated, valueOrDefault(parameters.existingNetworkResourceLoadIdentifierToResume).toUInt64());
+    WEBPAGE_RELEASE_LOG(Loading, "goToBackForwardItem: navigationID=%" PRIu64 ", backForwardItemID=%s, shouldTreatAsContinuingLoad=%u, lastNavigationWasAppInitiated=%d, existingNetworkResourceLoadIdentifierToResume=%" PRIu64, parameters.navigationID.toUInt64(), parameters.backForwardItemID.toString().utf8().data(), static_cast<unsigned>(parameters.shouldTreatAsContinuingLoad), parameters.lastNavigationWasAppInitiated, parameters.existingNetworkResourceLoadIdentifierToResume ? parameters.existingNetworkResourceLoadIdentifierToResume->toUInt64() : 0);
     SendStopResponsivenessTimer stopper;
 
     m_sandboxExtensionTracker.beginLoad(WTFMove(parameters.sandboxExtensionHandle));
@@ -2311,8 +2321,16 @@ void WebPage::goToBackForwardItem(GoToBackForwardItemParameters&& parameters)
     m_pendingNavigationID = parameters.navigationID;
     m_pendingWebsitePolicies = WTFMove(parameters.websitePolicies);
 
-    if (RefPtr mainFrame = m_mainFrame->provisionalFrame() ? m_mainFrame->provisionalFrame() : m_mainFrame->coreFrame())
-        m_page->goToItem(*mainFrame, *item, parameters.backForwardType, parameters.shouldTreatAsContinuingLoad);
+    Ref targetFrame = m_mainFrame;
+    if (!item->wasRestoredFromSession()) {
+        if (RefPtr historyItemFrame = WebProcess::singleton().webFrame(item->frameID()))
+            targetFrame = historyItemFrame.releaseNonNull();
+    }
+
+    ASSERT(targetFrame == m_mainFrame || m_page->settings().siteIsolationEnabled());
+
+    if (RefPtr targetLocalFrame = targetFrame->provisionalFrame() ? targetFrame->provisionalFrame() : targetFrame->coreFrame())
+        m_page->goToItem(*targetLocalFrame, *item, parameters.backForwardType, parameters.shouldTreatAsContinuingLoad);
 }
 
 // GoToBackForwardItemWaitingForProcessLaunch should never be sent to the WebProcess. It must always be converted to a GoToBackForwardItem message.
@@ -2690,6 +2708,14 @@ void WebPage::scaleView(double scale)
     didScaleView(scale);
     send(Messages::WebPageProxy::ViewScaleFactorDidChange(scale));
 }
+
+#if ENABLE(PDF_PLUGIN)
+void WebPage::setPluginScaleFactor(double scaleFactor, WebCore::IntPoint origin)
+{
+    if (RefPtr plugin = mainFramePlugIn())
+        plugin->setPageScaleFactor(scaleFactor, origin);
+}
+#endif
 
 void WebPage::setDeviceScaleFactor(float scaleFactor)
 {
@@ -4776,11 +4802,6 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
         modelProcessConnection->connection().setIgnoreInvalidMessageForTesting();
 #endif // ENABLE(MODEL_PROCESS)
 #endif // ENABLE(IPC_TESTING_API)
-
-#if ENABLE(WEB_AUTHN) && (PLATFORM(IOS) || PLATFORM(VISION))
-    if (isParentProcessAWebBrowser())
-        settings.setWebAuthenticationEnabled(true);
-#endif
     
 #if ENABLE(ALTERNATE_WEBM_PLAYER)
     PlatformMediaSessionManager::setAlternateWebMPlayerEnabled(settings.alternateWebMPlayerEnabled());
@@ -5632,8 +5653,8 @@ void WebPage::setActiveDateTimeChooser(WebDateTimeChooser& dateTimeChooser)
 
 void WebPage::didChooseDate(const String& date)
 {
-    if (m_activeDateTimeChooser)
-        m_activeDateTimeChooser->didChooseDate(date);
+    if (RefPtr activeDateTimeChooser = m_activeDateTimeChooser.get())
+        activeDateTimeChooser->didChooseDate(date);
 }
 
 void WebPage::didEndDateTimePicker()
@@ -10077,6 +10098,27 @@ void WebPage::updateCaptureState(const WebCore::Document& document, bool isActiv
 RefPtr<DrawingArea> WebPage::protectedDrawingArea() const
 {
     return m_drawingArea;
+}
+
+void WebPage::updateOpener(WebCore::FrameIdentifier frameID, WebCore::FrameIdentifier newOpenerIdentifier)
+{
+    RefPtr frame = WebProcess::singleton().webFrame(frameID);
+    if (!frame)
+        return;
+    RefPtr coreFrame = frame->coreFrame();
+    if (!coreFrame)
+        return;
+
+    RefPtr newOpener = WebProcess::singleton().webFrame(newOpenerIdentifier);
+    if (!newOpener)
+        return;
+    RefPtr coreNewOpener = newOpener->coreFrame();
+    if (!coreNewOpener)
+        return;
+
+    coreFrame->updateOpener(*coreNewOpener, WebCore::Frame::NotifyUIProcess::No);
+    if (RefPtr provisionalFrame = frame->provisionalFrame())
+        provisionalFrame->updateOpener(*coreNewOpener, WebCore::Frame::NotifyUIProcess::No);
 }
 
 } // namespace WebKit

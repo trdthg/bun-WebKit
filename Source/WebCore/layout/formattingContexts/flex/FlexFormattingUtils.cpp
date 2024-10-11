@@ -39,31 +39,54 @@ FlexFormattingUtils::FlexFormattingUtils(const FlexFormattingContext& flexFormat
 {
 }
 
-bool FlexFormattingUtils::isMainAxisParallelWithInlineAxis(const ElementBox& flexBox)
+bool FlexFormattingUtils::isMainAxisParallelWithInlineAxis(const ElementBox& flexContainer)
 {
-    ASSERT(flexBox.isFlexBox());
-    auto flexDirection = flexBox.style().flexDirection();
-    return flexDirection == FlexDirection::Row || flexBox.style().flexDirection() == FlexDirection::RowReverse;
+    ASSERT(flexContainer.isFlexBox());
+    auto flexDirection = flexContainer.style().flexDirection();
+    return flexDirection == FlexDirection::Row || flexContainer.style().flexDirection() == FlexDirection::RowReverse;
 }
 
-bool FlexFormattingUtils::isMainReversedToContentDirection(const ElementBox& flexBox)
+bool FlexFormattingUtils::isMainReversedToContentDirection(const ElementBox& flexContainer)
 {
-    ASSERT(flexBox.isFlexBox());
-    auto flexDirection = flexBox.style().flexDirection();
+    ASSERT(flexContainer.isFlexBox());
+    auto flexDirection = flexContainer.style().flexDirection();
     return flexDirection == FlexDirection::RowReverse || flexDirection == FlexDirection::ColumnReverse;
 }
 
-bool FlexFormattingUtils::areFlexLinesReversedInCrossAxis(const ElementBox& flexBox)
+bool FlexFormattingUtils::areFlexLinesReversedInCrossAxis(const ElementBox& flexContainer)
 {
-    ASSERT(flexBox.isFlexBox());
-    return flexBox.style().flexWrap() == FlexWrap::Reverse;
+    ASSERT(flexContainer.isFlexBox());
+    return flexContainer.style().flexWrap() == FlexWrap::Reverse;
+}
+
+LayoutUnit FlexFormattingUtils::rowGapValue(const ElementBox& flexContainer, LayoutUnit flexContainerContentBoxHeight)
+{
+    ASSERT(flexContainer.isFlexBox());
+    auto& rowGap = flexContainer.style().rowGap();
+    if (rowGap.isNormal())
+        return { };
+    return valueForLength(rowGap.length(), flexContainerContentBoxHeight);
+}
+
+LayoutUnit FlexFormattingUtils::columnGapValue(const ElementBox& flexContainer, LayoutUnit flexContainerContentBoxWidth)
+{
+    ASSERT(flexContainer.isFlexBox());
+    auto& columnGap = flexContainer.style().columnGap();
+    if (columnGap.isNormal())
+        return { };
+    return valueForLength(columnGap.length(), flexContainerContentBoxWidth);
 }
 
 LayoutUnit FlexFormattingUtils::usedMinimumMainSize(const LogicalFlexItem& flexItem) const
 {
-    if (auto minimumSize = flexItem.mainAxis().minimumSize)
-        return *minimumSize;
-    return formattingContext().integrationUtils().minContentLogicalWidth(downcast<ElementBox>(flexItem.layoutBox()));
+    if (auto mainAxisMinimumWidth = flexItem.mainAxis().minimumSize)
+        return *mainAxisMinimumWidth;
+
+    auto minimumContentSize = formattingContext().integrationUtils().minContentLogicalWidth(downcast<ElementBox>(flexItem.layoutBox()));
+    if (auto mainAxisWidth = flexItem.mainAxis().size)
+        return std::min(*mainAxisWidth, minimumContentSize);
+
+    return minimumContentSize;
 }
 
 std::optional<LayoutUnit> FlexFormattingUtils::usedMaxiumMainSize(const LogicalFlexItem& flexItem) const

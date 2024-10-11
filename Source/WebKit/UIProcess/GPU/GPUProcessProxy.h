@@ -207,13 +207,13 @@ private:
     void sendBookmarkDataForCacheDirectory();
 #endif
 
-    ProcessThrottler::ActivityVariant m_activityFromWebProcesses;
+    RefPtr<ProcessThrottler::Activity> m_activityFromWebProcesses;
 #if ENABLE(MEDIA_STREAM)
     bool m_useMockCaptureDevices { false };
     WebCore::IntDegrees m_orientation { 0 };
     WeakHashSet<WebPageProxy> m_pagesListeningToVoiceActivity;
     bool m_shouldListenToVoiceActivity { false };
-    WebPageProxyIdentifier m_lastPageUsingMicrophone;
+    Markable<WebPageProxyIdentifier> m_lastPageUsingMicrophone;
     bool m_isMicrophoneMuteStatusAPIEnabled { false };
 #endif
 #if HAVE(SC_CONTENT_SHARING_PICKER)

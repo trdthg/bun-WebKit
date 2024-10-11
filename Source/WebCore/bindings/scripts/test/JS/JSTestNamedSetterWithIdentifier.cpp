@@ -313,7 +313,7 @@ bool JSTestNamedSetterWithIdentifier::defineOwnProperty(JSObject* object, JSGlob
 bool JSTestNamedSetterWithIdentifier::deleteProperty(JSCell* cell, JSGlobalObject* lexicalGlobalObject, PropertyName propertyName, DeletePropertySlot& slot)
 {
     auto& thisObject = *jsCast<JSTestNamedSetterWithIdentifier*>(cell);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
 
     // Temporary quirk for ungap/@custom-elements polyfill (rdar://problem/111008826), consider removing in 2025.
     if (auto* document = dynamicDowncast<Document>(jsDynamicCast<JSDOMGlobalObject*>(lexicalGlobalObject)->scriptExecutionContext())) {
@@ -333,7 +333,7 @@ bool JSTestNamedSetterWithIdentifier::deletePropertyByIndex(JSCell* cell, JSGlob
 {
     UNUSED_PARAM(lexicalGlobalObject);
     auto& thisObject = *jsCast<JSTestNamedSetterWithIdentifier*>(cell);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
 
     // Temporary quirk for ungap/@custom-elements polyfill (rdar://problem/111008826), consider removing in 2025.
     if (auto* document = dynamicDowncast<Document>(jsDynamicCast<JSDOMGlobalObject*>(lexicalGlobalObject)->scriptExecutionContext())) {
@@ -367,7 +367,7 @@ static inline JSC::EncodedJSValue jsTestNamedSetterWithIdentifierPrototypeFuncti
     auto throwScope = DECLARE_THROW_SCOPE(vm);
     UNUSED_PARAM(throwScope);
     UNUSED_PARAM(callFrame);
-    auto& impl = castedThis->wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = castedThis->wrapped();
     if (UNLIKELY(callFrame->argumentCount() < 2))
         return throwVMError(lexicalGlobalObject, throwScope, createNotEnoughArgumentsError(lexicalGlobalObject));
     EnsureStillAliveScope argument0 = callFrame->uncheckedArgument(0);
@@ -400,8 +400,8 @@ void JSTestNamedSetterWithIdentifier::analyzeHeap(JSCell* cell, HeapAnalyzer& an
 {
     auto* thisObject = jsCast<JSTestNamedSetterWithIdentifier*>(cell);
     analyzer.setWrappedObjectForCell(cell, &thisObject->wrapped());
-    if (thisObject->scriptExecutionContext())
-        analyzer.setLabelForCell(cell, makeString("url "_s, thisObject->scriptExecutionContext()->url().string()));
+    if (RefPtr context = thisObject->scriptExecutionContext())
+        analyzer.setLabelForCell(cell, makeString("url "_s, context->url().string()));
     Base::analyzeHeap(cell, analyzer);
 }
 

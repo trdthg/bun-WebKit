@@ -33,7 +33,6 @@
 #include "GstAllocatorFastMalloc.h"
 #include "IntSize.h"
 #include "PlatformDisplay.h"
-#include "RuntimeApplicationChecks.h"
 #include "SharedBuffer.h"
 #include "WebKitAudioSinkGStreamer.h"
 #include <gst/audio/audio-info.h>
@@ -44,6 +43,7 @@
 #include <wtf/NeverDestroyed.h>
 #include <wtf/PrintStream.h>
 #include <wtf/RecursiveLockAdapter.h>
+#include <wtf/RuntimeApplicationChecks.h>
 #include <wtf/Scope.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/glib/GThreadSafeWeakPtr.h>
@@ -67,6 +67,10 @@
 #if ENABLE(MEDIA_STREAM)
 #include "GStreamerCaptureDeviceManager.h"
 #include "GStreamerMediaStreamSource.h"
+#endif
+
+#if ENABLE(SPEECH_SYNTHESIS)
+#include "WebKitFliteSourceGStreamer.h"
 #endif
 
 #if ENABLE(ENCRYPTED_MEDIA) && ENABLE(THUNDER)
@@ -381,6 +385,10 @@ void registerWebKitGStreamerElements()
 
 #if ENABLE(MEDIA_SOURCE)
         gst_element_register(nullptr, "webkitmediasrc", GST_RANK_PRIMARY, WEBKIT_TYPE_MEDIA_SRC);
+#endif
+
+#if ENABLE(SPEECH_SYNTHESIS)
+        gst_element_register(nullptr, "webkitflitesrc", GST_RANK_NONE, WEBKIT_TYPE_FLITE_SRC);
 #endif
 
 #if ENABLE(VIDEO)

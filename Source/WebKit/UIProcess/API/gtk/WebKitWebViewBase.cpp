@@ -2541,8 +2541,7 @@ void webkitWebViewBaseCreateWebPage(WebKitWebViewBase* webkitWebViewBase, Ref<AP
     priv->acceleratedBackingStore = AcceleratedBackingStore::create(*priv->pageProxy);
 
     auto& pageConfiguration = priv->pageProxy->configuration();
-    auto& openerInfo = pageConfiguration.openerInfo();
-    priv->pageProxy->initializeWebPage(openerInfo ? openerInfo->site : Site(aboutBlankURL()), pageConfiguration.initialSandboxFlags());
+    priv->pageProxy->initializeWebPage(pageConfiguration.openedSite(), pageConfiguration.initialSandboxFlags());
 
     if (priv->displayID)
         priv->pageProxy->windowScreenDidChange(priv->displayID);
@@ -3464,7 +3463,13 @@ void webkitWebViewBaseSetPlugID(WebKitWebViewBase* webViewBase, const String& pl
     RELEASE_ASSERT(tokens.size() == 2);
 
     GUniqueOutPtr<GError> error;
-    GUniquePtr<char> busName(g_strdup_printf(":%s", tokens[0].utf8().data()));
+
+    auto plugBusName = tokens[0].utf8();
+    RELEASE_ASSERT(g_dbus_is_name(plugBusName.data()));
+
+    auto* busNamePrefix = !g_dbus_is_unique_name(plugBusName.data()) ? "" : ":";
+
+    GUniquePtr<char> busName(g_strdup_printf("%s%s", busNamePrefix, plugBusName.data()));
 
     priv->socketAccessible = adoptGRef(gtk_at_spi_socket_new(busName.get(), tokens[1].utf8().data(), &error.outPtr()));
 

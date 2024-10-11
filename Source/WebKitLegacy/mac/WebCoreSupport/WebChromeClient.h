@@ -65,7 +65,7 @@ private:
     void focusedElementChanged(WebCore::Element*) override;
     void focusedFrameChanged(WebCore::Frame*) final;
 
-    WebCore::Page* createWindow(WebCore::LocalFrame&, const WebCore::WindowFeatures&, const WebCore::NavigationAction&) final;
+    RefPtr<WebCore::Page> createWindow(WebCore::LocalFrame&, const WebCore::WindowFeatures&, const WebCore::NavigationAction&) final;
     void show() final;
 
     bool canRunModal() const final;
@@ -148,7 +148,7 @@ private:
 #endif
 
 #if ENABLE(DATE_AND_TIME_INPUT_TYPES)
-    std::unique_ptr<WebCore::DateTimeChooser> createDateTimeChooser(WebCore::DateTimeChooserClient&) final;
+    RefPtr<WebCore::DateTimeChooser> createDateTimeChooser(WebCore::DateTimeChooserClient&) final;
 #endif
 
     void setTextIndicator(const WebCore::TextIndicatorData&) const final;

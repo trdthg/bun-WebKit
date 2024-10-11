@@ -166,6 +166,10 @@
 #include <wtf/text/MakeString.h>
 #include <wtf/text/TextStream.h>
 
+#if PLATFORM(MAC)
+#include <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
+#endif
+
 namespace WebCore {
 
 WTF_MAKE_TZONE_OR_ISO_ALLOCATED_IMPL(Element);
@@ -519,7 +523,7 @@ Element::DispatchMouseEventResult Element::dispatchMouseEvent(const PlatformMous
     if (RefPtr frame = document().frame())
         isParentProcessAFullWebBrowser = frame->loader().client().isParentProcessAFullWebBrowser();
 #elif PLATFORM(MAC)
-    isParentProcessAFullWebBrowser = MacApplication::isSafari();
+    isParentProcessAFullWebBrowser = WTF::MacApplication::isSafari();
 #endif
     if (Quirks::StorageAccessResult::ShouldCancelEvent == protectedDocument()->quirks().triggerOptionalStorageAccessQuirk(*this, platformEvent, eventType, detail, relatedTarget, isParentProcessAFullWebBrowser, isSyntheticClick))
         return { Element::EventIsDispatched::No, eventIsDefaultPrevented };
@@ -2762,6 +2766,31 @@ void Element::updateEffectiveTextDirection()
     updateEffectiveTextDirectionState(*this, textDirectionState);
 }
 
+void Element::updateEffectiveTextDirectionIfNeeded()
+{
+    if (UNLIKELY(selfOrPrecedingNodesAffectDirAuto())) {
+        updateEffectiveTextDirection();
+        return;
+    }
+
+    RefPtr parent = parentOrShadowHostElement();
+    if (!(parent && parent->usesEffectiveTextDirection()))
+        return;
+
+    if (hasAttributeWithoutSynchronization(HTMLNames::dirAttr) || shadowRoot() || firstChild()) {
+        updateEffectiveTextDirection();
+        return;
+    }
+
+    if (auto* input = dynamicDowncast<HTMLInputElement>(*this); input && input->isTelephoneField()) {
+        updateEffectiveTextDirection();
+        return;
+    }
+
+    setUsesEffectiveTextDirection(parent->usesEffectiveTextDirection());
+    setEffectiveTextDirection(parent->effectiveTextDirection());
+}
+
 void Element::dirAttributeChanged(const AtomString& newValue)
 {
     auto textDirectionState = parseTextDirectionState(newValue);
@@ -2904,11 +2933,8 @@ Node::InsertedIntoAncestorResult Element::insertedIntoAncestor(InsertionType ins
     } else if (!hasLanguageAttribute())
         updateEffectiveLangStateFromParent();
 
-    if (!is<HTMLSlotElement>(*this)) {
-        RefPtr parent = parentOrShadowHostElement();
-        if (UNLIKELY(selfOrPrecedingNodesAffectDirAuto() || (parent && parent->usesEffectiveTextDirection())))
-            updateEffectiveTextDirection();
-    }
+    if (!is<HTMLSlotElement>(*this))
+        updateEffectiveTextDirectionIfNeeded();
 
     return InsertedIntoAncestorResult::Done;
 }

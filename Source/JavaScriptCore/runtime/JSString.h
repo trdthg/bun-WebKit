@@ -260,6 +260,11 @@ public:
     {
         return m_fiber & isRopeInPointer;
     }
+    ALWAYS_INLINE JSRopeString* asRope()
+    {
+        ASSERT(isRope());
+        return jsCast<JSRopeString*>(this);
+    }
 
     ALWAYS_INLINE bool isNonSubstringRope() const
     {
@@ -322,6 +327,8 @@ private:
 // from JSStringSubspace::
 class JSRopeString final : public JSString {
     friend class JSString;
+    friend class RegExpObject;
+    friend class RegExpSubstringGlobalAtomCache;
 public:
     static void destroy(JSCell*);
 

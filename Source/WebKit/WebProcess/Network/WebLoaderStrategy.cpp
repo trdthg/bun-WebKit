@@ -67,13 +67,13 @@
 #include <WebCore/PlatformStrategies.h>
 #include <WebCore/ReferrerPolicy.h>
 #include <WebCore/ResourceLoader.h>
-#include <WebCore/RuntimeApplicationChecks.h>
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/Settings.h>
 #include <WebCore/SubresourceLoader.h>
 #include <WebCore/UserContentProvider.h>
 #include <pal/SessionID.h>
 #include <wtf/CompletionHandler.h>
+#include <wtf/RuntimeApplicationChecks.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/text/CString.h>
 
@@ -194,7 +194,7 @@ void WebLoaderStrategy::scheduleLoad(ResourceLoader& resourceLoader, CachedResou
         .resourceID = identifier
     };
     if (auto* webFrameLoaderClient = toWebLocalFrameLoaderClient(frameLoaderClient))
-        trackingParameters.webPageProxyID = valueOrDefault(webFrameLoaderClient->webPageProxyID());
+        trackingParameters.webPageProxyID = webFrameLoaderClient->webPageProxyID();
     else if (auto* workerFrameLoaderClient = dynamicDowncast<RemoteWorkerFrameLoaderClient>(frameLoaderClient))
         trackingParameters.webPageProxyID = workerFrameLoaderClient->webPageProxyID();
 
@@ -536,7 +536,7 @@ void WebLoaderStrategy::scheduleLoadFromNetworkProcess(ResourceLoader& resourceL
     std::optional<NetworkResourceLoadIdentifier> existingNetworkResourceLoadIdentifierToResume;
     if (loadParameters.isMainFrameNavigation)
         existingNetworkResourceLoadIdentifierToResume = std::exchange(m_existingNetworkResourceLoadIdentifierToResume, std::nullopt);
-    WEBLOADERSTRATEGY_RELEASE_LOG("scheduleLoad: Resource is being scheduled with the NetworkProcess (priority=%d, existingNetworkResourceLoadIdentifierToResume=%" PRIu64 ")", static_cast<int>(resourceLoader.request().priority()), valueOrDefault(existingNetworkResourceLoadIdentifierToResume).toUInt64());
+    WEBLOADERSTRATEGY_RELEASE_LOG("scheduleLoad: Resource is being scheduled with the NetworkProcess (priority=%d, existingNetworkResourceLoadIdentifierToResume=%" PRIu64 ")", static_cast<int>(resourceLoader.request().priority()), existingNetworkResourceLoadIdentifierToResume ? existingNetworkResourceLoadIdentifierToResume->toUInt64() : 0);
 
     if (WebProcess::singleton().ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::ScheduleResourceLoad(loadParameters, existingNetworkResourceLoadIdentifierToResume), 0) != IPC::Error::NoError) {
         WEBLOADERSTRATEGY_RELEASE_LOG_ERROR("scheduleLoad: Unable to schedule resource with the NetworkProcess (priority=%d)", static_cast<int>(resourceLoader.request().priority()));
@@ -712,7 +712,7 @@ void WebLoaderStrategy::loadResourceSynchronously(FrameLoader& frameLoader, WebC
     auto* webPage = webFrame ? webFrame->page() : nullptr;
     auto* page = webPage ? webPage->corePage() : nullptr;
 
-    auto webPageProxyID = webPage ? webPage->webPageProxyIdentifier() : WebPageProxyIdentifier { };
+    auto webPageProxyID = webPage ? std::optional { webPage->webPageProxyIdentifier() } : std::nullopt;
     auto pageID = webPage ? std::optional { webPage->identifier() } : std::nullopt;
     auto frameID = webFrame ? std::optional { webFrame->frameID() } : std::nullopt;
 

@@ -368,6 +368,7 @@ Modules/streams/ReadableStreamSink.cpp
 Modules/streams/ReadableStreamSource.cpp
 Modules/streams/TransformStream.cpp
 Modules/streams/WritableStream.cpp
+Modules/url-pattern/URLPattern.cpp
 Modules/web-locks/WebLock.cpp
 Modules/web-locks/WebLockManager.cpp
 Modules/web-locks/WebLockRegistry.cpp
@@ -1116,6 +1117,7 @@ css/typedom/transform/CSSSkewY.cpp
 css/typedom/transform/CSSTransformComponent.cpp
 css/typedom/transform/CSSTransformValue.cpp
 css/typedom/transform/CSSTranslate.cpp
+css/values/CSSGradient.cpp
 css/values/CSSPosition.cpp
 css/values/CSSPrimitiveNumericTypes+ComputedStyleDependencies.cpp
 css/values/CSSPrimitiveNumericTypes+Serialization.cpp
@@ -1931,6 +1933,7 @@ loader/LinkLoader.cpp
 loader/LinkPreloadResourceClients.cpp
 loader/LoaderMalloc.cpp
 loader/LoaderStrategy.cpp
+loader/LocalFrameLoaderClient.cpp
 loader/MediaResourceLoader.cpp
 loader/MixedContentChecker.cpp
 loader/NavigationAction.cpp
@@ -2240,7 +2243,6 @@ platform/PublicSuffixStore.cpp
 platform/ReferrerPolicy.cpp
 platform/RemoteCommandListener.cpp
 platform/RunLoopObserver.cpp
-platform/RuntimeApplicationChecks.cpp
 platform/ScreenOrientationManager.cpp
 platform/ScrollAlignment.cpp
 platform/ScrollAnimation.cpp
@@ -3051,6 +3053,7 @@ style/StyleUpdate.cpp
 style/Styleable.cpp
 style/TransformOperationsBuilder.cpp
 style/UserAgentStyle.cpp
+style/values/StyleGradient.cpp
 style/values/StylePosition.cpp
 style/values/StylePrimitiveNumericTypes.cpp
 style/values/StylePrimitiveNumericTypes+Conversions.cpp
@@ -4608,6 +4611,10 @@ JSFragmentDirective.cpp
 JSFullscreenOptions.cpp
 JSUIEvent.cpp
 JSUIEventInit.cpp
+JSURLPattern.cpp
+JSURLPatternInit.cpp
+JSURLPatternOptions.cpp
+JSURLPatternResult.cpp
 JSURLSearchParams.cpp
 JSUserActivation.cpp
 JSUndoItem.cpp

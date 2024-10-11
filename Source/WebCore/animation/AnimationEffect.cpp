@@ -94,27 +94,25 @@ EffectTiming AnimationEffect::getBindingsTiming() const
     return timing;
 }
 
-std::optional<CSSNumberishTime> AnimationEffect::localTime(std::optional<CSSNumberishTime> startTime) const
+AnimationEffectTiming::ResolutionData AnimationEffect::resolutionData(std::optional<CSSNumberishTime> startTime) const
 {
-    // 4.5.4. Local time
-    // https://drafts.csswg.org/web-animations-1/#local-time-section
+    if (!m_animation)
+        return { };
 
-    // The local time of an animation effect at a given moment is based on the first matching condition from the following:
-    // If the animation effect is associated with an animation, the local time is the current time of the animation.
-    // Otherwise, the local time is unresolved.
-    if (m_animation)
-        return m_animation->currentTime(startTime);
-    return std::nullopt;
-}
-
-double AnimationEffect::playbackRate() const
-{
-    return m_animation ? m_animation->playbackRate() : 1;
+    RefPtr animation = m_animation.get();
+    RefPtr timeline = animation->timeline();
+    return {
+        timeline ? timeline->currentTime() : std::nullopt,
+        timeline ? timeline->duration() : std::nullopt,
+        startTime ? startTime : animation->startTime(),
+        animation->currentTime(startTime),
+        animation->playbackRate()
+    };
 }
 
 BasicEffectTiming AnimationEffect::getBasicTiming(std::optional<CSSNumberishTime> startTime) const
 {
-    return m_timing.getBasicTiming(localTime(startTime), playbackRate());
+    return m_timing.getBasicTiming(resolutionData(startTime));
 }
 
 ComputedEffectTiming AnimationEffect::getBindingsComputedTiming() const
@@ -126,8 +124,8 @@ ComputedEffectTiming AnimationEffect::getBindingsComputedTiming() const
 
 ComputedEffectTiming AnimationEffect::getComputedTiming(std::optional<CSSNumberishTime> startTime) const
 {
-    auto localTime = this->localTime(startTime);
-    auto resolvedTiming = m_timing.resolve(localTime, playbackRate());
+    auto data = resolutionData(startTime);
+    auto resolvedTiming = m_timing.resolve(data);
 
     ComputedEffectTiming computedTiming;
     computedTiming.delay = secondsToWebAnimationsAPITime(m_timing.delay);
@@ -140,7 +138,7 @@ ComputedEffectTiming AnimationEffect::getComputedTiming(std::optional<CSSNumberi
     computedTiming.easing = m_timing.timingFunction->cssText();
     computedTiming.endTime = m_timing.endTime;
     computedTiming.activeDuration = m_timing.activeDuration;
-    computedTiming.localTime = localTime;
+    computedTiming.localTime = data.localTime;
     computedTiming.simpleIterationProgress = resolvedTiming.simpleIterationProgress;
     computedTiming.progress = resolvedTiming.transformedProgress;
     computedTiming.currentIteration = resolvedTiming.currentIteration;
@@ -228,8 +226,10 @@ ExceptionOr<void> AnimationEffect::updateTiming(Document& document, std::optiona
     if (timing->iterations)
         m_timing.iterations = timing->iterations.value();
 
-    if (timing->duration)
-        m_timing.iterationDuration = std::holds_alternative<double>(timing->duration.value()) ? Seconds::fromMilliseconds(std::get<double>(timing->duration.value())) : 0_s;
+    if (auto duration = timing->duration) {
+        m_hasAutoDuration = std::holds_alternative<String>(*duration);
+        normalizeSpecifiedTiming(*duration);
+    }
 
     if (timing->direction)
         m_timing.direction = timing->direction.value();
@@ -240,6 +240,22 @@ ExceptionOr<void> AnimationEffect::updateTiming(Document& document, std::optiona
         m_animation->effectTimingDidChange();
 
     return { };
+}
+
+void AnimationEffect::normalizeSpecifiedTiming(std::variant<double, String> duration)
+{
+    // https://drafts.csswg.org/web-animations-2/#normalize-specified-timing
+    m_timing.iterationDuration = [&]() {
+        if (m_animation) {
+            if (RefPtr timeline = m_animation->timeline()) {
+                if (timeline->duration())
+                    return CSSNumberishTime::fromPercentage(100);
+            }
+        }
+        if (auto* doubleValue = std::get_if<double>(&duration))
+            return CSSNumberishTime::fromMilliseconds(*doubleValue);
+        return CSSNumberishTime::fromMilliseconds(0);
+    }();
 }
 
 void AnimationEffect::updateStaticTimingProperties()
@@ -363,6 +379,21 @@ Seconds AnimationEffect::timeToNextTick(const BasicEffectTiming& timing) const
 
     ASSERT_NOT_REACHED();
     return Seconds::infinity();
+}
+
+void AnimationEffect::animationTimelineDidChange(const AnimationTimeline*)
+{
+    if (!m_hasAutoDuration)
+        return;
+
+    if (auto percentage = iterationDuration().percentage())
+        normalizeSpecifiedTiming(*percentage);
+    else {
+        ASSERT(iterationDuration().time());
+        normalizeSpecifiedTiming(iterationDuration().time()->seconds());
+    }
+
+    updateStaticTimingProperties();
 }
 
 } // namespace WebCore

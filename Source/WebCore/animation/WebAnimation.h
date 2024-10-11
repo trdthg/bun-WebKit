@@ -160,7 +160,7 @@ public:
     bool isSuspended() const { return m_isSuspended; }
     bool isReplaceable() const;
     void remove();
-    void enqueueAnimationPlaybackEvent(const AtomString&, std::optional<Seconds> currentTime, std::optional<Seconds> scheduledTime);
+    void enqueueAnimationPlaybackEvent(const AtomString&, std::optional<CSSNumberishTime> currentTime, std::optional<CSSNumberishTime> scheduledTime);
 
     uint64_t globalPosition() const { return m_globalPosition; }
     void setGlobalPosition(uint64_t globalPosition) { m_globalPosition = globalPosition; }
@@ -209,6 +209,7 @@ private:
     double effectivePlaybackRate() const;
     void applyPendingPlaybackRate();
     void setEffectiveFrameRate(std::optional<FramesPerSecond>);
+    CSSNumberishTime timeEpsilon() const;
 
     // ActiveDOMObject.
     void suspend(ReasonForSuspension) final;
@@ -241,6 +242,7 @@ private:
     bool m_isRelevant;
     bool m_shouldSkipUpdatingFinishedStateWhenResolving;
     bool m_hasScheduledEventsDuringTick { false };
+    bool m_autoAlignStartTime { false };
     TimeToRunPendingTask m_timeToRunPendingPlayTask { TimeToRunPendingTask::NotScheduled };
     TimeToRunPendingTask m_timeToRunPendingPauseTask { TimeToRunPendingTask::NotScheduled };
     ReplaceState m_replaceState { ReplaceState::Active };

@@ -286,7 +286,7 @@ bool JSTestNamedDeleterNoIdentifier::defineOwnProperty(JSObject* object, JSGloba
 bool JSTestNamedDeleterNoIdentifier::deleteProperty(JSCell* cell, JSGlobalObject* lexicalGlobalObject, PropertyName propertyName, DeletePropertySlot& slot)
 {
     auto& thisObject = *jsCast<JSTestNamedDeleterNoIdentifier*>(cell);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
     if (!propertyName.isSymbol() && impl.isSupportedPropertyName(propertyNameToString(propertyName))) {
         if (isVisibleNamedProperty<LegacyOverrideBuiltIns::No>(*lexicalGlobalObject, thisObject, propertyName)) {
             using ReturnType = decltype(impl.deleteNamedProperty(propertyNameToString(propertyName)));
@@ -301,7 +301,7 @@ bool JSTestNamedDeleterNoIdentifier::deletePropertyByIndex(JSCell* cell, JSGloba
 {
     UNUSED_PARAM(lexicalGlobalObject);
     auto& thisObject = *jsCast<JSTestNamedDeleterNoIdentifier*>(cell);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
     SUPPRESS_UNCOUNTED_LOCAL auto& vm = JSC::getVM(lexicalGlobalObject);
     auto propertyName = Identifier::from(vm, index);
     if (impl.isSupportedPropertyName(propertyNameToString(propertyName))) {
@@ -338,8 +338,8 @@ void JSTestNamedDeleterNoIdentifier::analyzeHeap(JSCell* cell, HeapAnalyzer& ana
 {
     auto* thisObject = jsCast<JSTestNamedDeleterNoIdentifier*>(cell);
     analyzer.setWrappedObjectForCell(cell, &thisObject->wrapped());
-    if (thisObject->scriptExecutionContext())
-        analyzer.setLabelForCell(cell, makeString("url "_s, thisObject->scriptExecutionContext()->url().string()));
+    if (RefPtr context = thisObject->scriptExecutionContext())
+        analyzer.setLabelForCell(cell, makeString("url "_s, context->url().string()));
     Base::analyzeHeap(cell, analyzer);
 }
 

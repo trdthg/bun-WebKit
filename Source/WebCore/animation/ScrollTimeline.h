@@ -28,6 +28,7 @@
 #include "AnimationTimeline.h"
 #include "ScrollAxis.h"
 #include "ScrollTimelineOptions.h"
+#include "TimelineRange.h"
 #include <wtf/Ref.h>
 #include <wtf/WeakPtr.h>
 
@@ -61,17 +62,20 @@ public:
     AnimationTimelinesController* controller() const override;
     static ScrollableArea* scrollableAreaForSourceRenderer(RenderElement*, Ref<Document>);
 
+    std::optional<CSSNumberishTime> currentTime() override;
+
 protected:
     explicit ScrollTimeline(const AtomString&, ScrollAxis);
 
-private:
     struct Data {
-        float maxScrollOffset = 0;
-        float scrollOffset = 0;
+        float scrollOffset { 0 };
+        float rangeStart { 0 };
+        float rangeEnd { 0 };
     };
+    static float floatValueForOffset(const Length&, float);
+    virtual Data computeTimelineData(const TimelineRange& = { }) const;
 
-    Data computeScrollTimelineData() const;
-
+private:
     enum class Scroller : uint8_t { Nearest, Root, Self };
 
     explicit ScrollTimeline(ScrollTimelineOptions&& = { });

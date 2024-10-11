@@ -38,6 +38,7 @@
 #include <wtf/Expected.h>
 #include <wtf/Forward.h>
 #include <wtf/WallTime.h>
+#include <wtf/WeakRef.h>
 #include <wtf/text/WTFString.h>
 
 #if ENABLE(APPLICATION_MANIFEST)
@@ -100,12 +101,18 @@ enum class LoadWillContinueInAnotherProcess : bool;
 enum class LockBackForwardList : bool;
 enum class UsedLegacyTLS : bool;
 enum class WasPrivateRelayed : bool;
+enum class FromDownloadAttribute : bool { No , Yes };
 
 struct StringWithDirection;
 
 class WEBCORE_EXPORT LocalFrameLoaderClient : public FrameLoaderClient {
     WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Loader);
 public:
+    ~LocalFrameLoaderClient();
+
+    void ref() const;
+    void deref() const;
+
     // An inline function cannot be the first non-abstract virtual function declared
     // in the class as it results in the vtable being generated as a weak symbol.
     // This hurts performance (in Mac OS X at least, when loading frameworks), so we
@@ -193,7 +200,7 @@ public:
 
     virtual void setMainFrameDocumentReady(bool) = 0;
 
-    virtual void startDownload(const ResourceRequest&, const String& suggestedName = String()) = 0;
+    virtual void startDownload(const ResourceRequest&, const String& suggestedName = String(), FromDownloadAttribute = FromDownloadAttribute::No) = 0;
 
     virtual void willChangeTitle(DocumentLoader*) = 0;
     virtual void didChangeTitle(DocumentLoader*) = 0;
@@ -378,6 +385,12 @@ public:
     virtual void documentLoaderDetached(NavigationIdentifier, LoadWillContinueInAnotherProcess) { }
 
     virtual void frameNameChanged(const String&) { }
+
+protected:
+    explicit LocalFrameLoaderClient(FrameLoader&);
+
+private:
+    WeakRef<FrameLoader> m_loader;
 };
 
 } // namespace WebCore

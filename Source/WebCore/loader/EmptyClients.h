@@ -64,7 +64,7 @@ class EmptyChromeClient : public ChromeClient {
     void focusedElementChanged(Element*) final { }
     void focusedFrameChanged(Frame*) final { }
 
-    Page* createWindow(LocalFrame&, const WindowFeatures&, const NavigationAction&) final { return nullptr; }
+    RefPtr<Page> createWindow(LocalFrame&, const WindowFeatures&, const NavigationAction&) final { return nullptr; }
     void show() final { }
 
     bool canRunModal() const final { return false; }
@@ -149,7 +149,7 @@ class EmptyChromeClient : public ChromeClient {
 #endif
 
 #if ENABLE(DATE_AND_TIME_INPUT_TYPES)
-    std::unique_ptr<DateTimeChooser> createDateTimeChooser(DateTimeChooserClient&) final;
+    RefPtr<DateTimeChooser> createDateTimeChooser(DateTimeChooserClient&) final;
 #endif
 
     void setTextIndicator(const TextIndicatorData&) const final;

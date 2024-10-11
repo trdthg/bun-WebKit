@@ -757,37 +757,6 @@ constexpr auto constructFixedSizeArrayWithArguments(Args&&... args) -> decltype(
     return constructFixedSizeArrayWithArgumentsImpl<ResultType>(tuple, std::forward<Args>(args)...);
 }
 
-// FIXME: Use std::is_sorted instead of this and remove it, once we require C++20.
-template<typename Iterator, typename Predicate> constexpr bool isSortedConstExpr(Iterator first, Iterator last, Predicate predicate)
-{
-    if (first == last)
-        return true;
-    auto current = first;
-    auto previous = current;
-    while (++current != last) {
-        if (!predicate(*previous, *current))
-            return false;
-        previous = current;
-    }
-    return true;
-}
-
-// FIXME: Use std::is_sorted instead of this and remove it, once we require C++20.
-template<typename Iterator> constexpr bool isSortedConstExpr(Iterator first, Iterator last)
-{
-    return isSortedConstExpr(first, last, [] (auto& a, auto& b) { return a < b; });
-}
-
-// FIXME: Use std::all_of instead of this and remove it, once we require C++20.
-template<typename Iterator, typename Predicate> constexpr bool allOfConstExpr(Iterator first, Iterator last, Predicate predicate)
-{
-    for (; first != last; ++first) {
-        if (!predicate(*first))
-            return false;
-    }
-    return true;
-}
-
 template<typename OptionalType, class Callback> typename OptionalType::value_type valueOrCompute(OptionalType optional, Callback callback) 
 {
     return optional ? *optional : callback();
@@ -798,6 +767,8 @@ template<typename OptionalType> auto valueOrDefault(OptionalType&& optionalValue
     return optionalValue ? *std::forward<OptionalType>(optionalValue) : std::remove_reference_t<decltype(*optionalValue)> { };
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
 template<typename T, typename U, std::size_t Extent>
 std::span<T, Extent == std::dynamic_extent ? std::dynamic_extent : (sizeof(U) * Extent) / sizeof(T)> spanReinterpretCast(std::span<U, Extent> span)
 {
@@ -812,6 +783,7 @@ std::span<T, Extent == std::dynamic_extent ? std::dynamic_extent : (sizeof(U) * 
     using ReturnType = std::span<T, Extent == std::dynamic_extent ? std::dynamic_extent : (sizeof(U) * Extent) / sizeof(T)>;
     return ReturnType { reinterpret_cast<T*>(const_cast<std::remove_const_t<U>*>(span.data())), span.size_bytes() / sizeof(T) };
 }
+#pragma GCC diagnostic pop
 
 template<typename T, std::size_t Extent>
 std::span<T, Extent> spanConstCast(std::span<const T, Extent> span)
@@ -889,11 +861,31 @@ template<ByteType T, typename U> constexpr auto byteCast(const U& value)
 }
 
 // This is like std::invocable but it takes the expected signature rather than just the arguments.
-template<typename Functor, typename Signature>
-concept Invocable = requires(std::decay_t<Functor>&& f, std::function<Signature> expected)
-{
+template<typename Functor, typename Signature> concept Invocable = requires(std::decay_t<Functor>&& f, std::function<Signature> expected) {
     { expected = std::move(f) };
 };
+
+// Concept for constraining to user-defined "Tuple-like" types.
+//
+// Based on exposition-only text in https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2165r3.pdf
+// and https://stackoverflow.com/questions/68443804/c20-concept-to-check-tuple-like-types.
+
+template<class T, std::size_t N> concept HasTupleElement = requires(T t) {
+    typename std::tuple_element_t<N, std::remove_const_t<T>>;
+    { get<N>(t) } -> std::convertible_to<std::tuple_element_t<N, T>&>;
+};
+
+template<class T> concept TupleLike = !std::is_reference_v<T>
+    && requires(T t) {
+        typename std::tuple_size<T>::type;
+        requires std::derived_from<
+          std::tuple_size<T>,
+          std::integral_constant<std::size_t, std::tuple_size_v<T>>
+        >;
+      }
+    && []<std::size_t... N>(std::index_sequence<N...>) {
+        return (HasTupleElement<T, N> && ...);
+    }(std::make_index_sequence<std::tuple_size_v<T>>());
 
 // This is like std::apply, but works with user-defined "Tuple-like" types as well as the
 // standard ones. The only real difference between its implementation and the standard one

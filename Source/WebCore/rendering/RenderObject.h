@@ -1185,7 +1185,8 @@ private:
 #if PLATFORM(IOS_FAMILY)
     struct SelectionGeometries {
         Vector<SelectionGeometry> geometries;
-        int maxLineNumber;
+        int maxLineNumber { 0 };
+        bool hasAnyRightToLeftText { false };
     };
     WEBCORE_EXPORT static SelectionGeometries collectSelectionGeometriesInternal(const SimpleRange&);
 #endif
@@ -1602,6 +1603,7 @@ inline bool RenderObject::usesBoundaryCaching() const
 }
 
 WTF::TextStream& operator<<(WTF::TextStream&, const RenderObject&);
+WTF::TextStream& operator<<(WTF::TextStream&, const RenderObject::RepaintRects&);
 
 #if ENABLE(TREE_DEBUGGING)
 void printPaintOrderTreeForLiveDocuments();

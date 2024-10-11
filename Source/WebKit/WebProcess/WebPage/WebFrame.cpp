@@ -139,8 +139,8 @@ Ref<WebFrame> WebFrame::createSubframe(WebPage& page, WebFrame& parent, const At
     auto frameID = WebCore::FrameIdentifier::generate();
     auto frame = create(page, frameID);
     ASSERT(page.corePage());
-    auto coreFrame = LocalFrame::createSubframe(*page.corePage(), [frame] (auto& localFrame) {
-        return makeUniqueRef<WebLocalFrameLoaderClient>(localFrame, frame.get(), frame->makeInvalidator());
+    auto coreFrame = LocalFrame::createSubframe(*page.corePage(), [frame] (auto& localFrame, auto& frameLoader) {
+        return makeUniqueRef<WebLocalFrameLoaderClient>(localFrame, frameLoader, frame.get(), frame->makeInvalidator());
     }, frameID, effectiveSandboxFlags, ownerElement);
     frame->m_coreFrame = coreFrame.get();
 
@@ -153,14 +153,20 @@ Ref<WebFrame> WebFrame::createSubframe(WebPage& page, WebFrame& parent, const At
     return frame;
 }
 
-Ref<WebFrame> WebFrame::createRemoteSubframe(WebPage& page, WebFrame& parent, WebCore::FrameIdentifier frameID, const String& frameName)
+Ref<WebFrame> WebFrame::createRemoteSubframe(WebPage& page, WebFrame& parent, WebCore::FrameIdentifier frameID, const String& frameName, std::optional<WebCore::FrameIdentifier> openerFrameID)
 {
+    RefPtr<WebCore::Frame> opener;
+    if (openerFrameID) {
+        if (RefPtr openerWebFrame = WebProcess::singleton().webFrame(*openerFrameID))
+            opener = openerWebFrame->coreFrame();
+    }
+
     auto frame = create(page, frameID);
     RELEASE_ASSERT(page.corePage());
     RELEASE_ASSERT(parent.coreFrame());
     auto coreFrame = RemoteFrame::createSubframe(*page.corePage(), [frame] (auto&) {
         return makeUniqueRef<WebRemoteFrameClient>(frame.copyRef(), frame->makeInvalidator());
-    }, frameID, *parent.coreFrame());
+    }, frameID, *parent.coreFrame(), opener.get());
     frame->m_coreFrame = coreFrame.get();
     coreFrame->tree().setSpecifiedName(AtomString(frameName));
     return frame;
@@ -367,7 +373,7 @@ void WebFrame::loadDidCommitInAnotherProcess(std::optional<WebCore::LayerHosting
     };
     auto newFrame = ownerElement
         ? WebCore::RemoteFrame::createSubframeWithContentsInAnotherProcess(*corePage, WTFMove(clientCreator), m_frameID, *ownerElement, layerHostingContextIdentifier)
-        : parent ? WebCore::RemoteFrame::createSubframe(*corePage, WTFMove(clientCreator), m_frameID, *parent) : WebCore::RemoteFrame::createMainFrame(*corePage, WTFMove(clientCreator), m_frameID, localFrame->opener());
+        : parent ? WebCore::RemoteFrame::createSubframe(*corePage, WTFMove(clientCreator), m_frameID, *parent, localFrame->opener()) : WebCore::RemoteFrame::createMainFrame(*corePage, WTFMove(clientCreator), m_frameID, localFrame->opener());
     if (!parent)
         corePage->setMainFrame(newFrame.copyRef());
     newFrame->takeWindowProxyAndOpenerFrom(*localFrame);
@@ -395,17 +401,17 @@ void WebFrame::createProvisionalFrame(ProvisionalFrameCreationParameters&& param
         return;
     }
 
-    auto* corePage = remoteFrame->page();
+    RefPtr corePage = remoteFrame->page();
     if (!corePage) {
         ASSERT_NOT_REACHED();
         return;
     }
 
     RefPtr parent = remoteFrame->tree().parent();
-    auto clientCreator = [this, protectedThis = Ref { *this }] (auto& localFrame) mutable {
-        return makeUniqueRef<WebLocalFrameLoaderClient>(localFrame, WTFMove(protectedThis), makeInvalidator());
+    auto clientCreator = [this, protectedThis = Ref { *this }] (auto& localFrame, auto& frameLoader) mutable {
+        return makeUniqueRef<WebLocalFrameLoaderClient>(localFrame, frameLoader, WTFMove(protectedThis), makeInvalidator());
     };
-    auto localFrame = parent ? LocalFrame::createProvisionalSubframe(*corePage, WTFMove(clientCreator), m_frameID, parameters.effectiveSandboxFlags, *parent) : LocalFrame::createMainFrame(*corePage, WTFMove(clientCreator), m_frameID, parameters.effectiveSandboxFlags, remoteFrame->opener());
+    auto localFrame = parent ? LocalFrame::createProvisionalSubframe(*corePage, WTFMove(clientCreator), m_frameID, parameters.effectiveSandboxFlags, *parent) : LocalFrame::createMainFrame(*corePage, WTFMove(clientCreator), m_frameID, parameters.effectiveSandboxFlags, nullptr);
     m_provisionalFrame = localFrame.ptr();
     localFrame->init();
 
@@ -557,7 +563,7 @@ void WebFrame::didReceivePolicyDecision(uint64_t listenerID, PolicyDecision&& po
     function(policyDecision.policyAction);
 }
 
-void WebFrame::startDownload(const WebCore::ResourceRequest& request, const String& suggestedName)
+void WebFrame::startDownload(const WebCore::ResourceRequest& request, const String& suggestedName, FromDownloadAttribute fromDownloadAttribute)
 {
     if (!m_policyDownloadID) {
         ASSERT_NOT_REACHED();
@@ -569,7 +575,7 @@ void WebFrame::startDownload(const WebCore::ResourceRequest& request, const Stri
 
     std::optional<NavigatingToAppBoundDomain> isAppBound = NavigatingToAppBoundDomain::No;
     isAppBound = m_isNavigatingToAppBoundDomain;
-    WebProcess::singleton().ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::StartDownload(policyDownloadID, request, topOrigin, isAppBound, suggestedName), 0);
+    WebProcess::singleton().ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::StartDownload(policyDownloadID, request, topOrigin, isAppBound, suggestedName, fromDownloadAttribute), 0);
 }
 
 void WebFrame::convertMainResourceLoadToDownload(DocumentLoader* documentLoader, const ResourceRequest& request, const ResourceResponse& response)

@@ -92,7 +92,6 @@
 #include <WebCore/Quirks.h>
 #include <WebCore/ResourceError.h>
 #include <WebCore/ResourceRequest.h>
-#include <WebCore/RuntimeApplicationChecks.h>
 #include <WebCore/ScriptController.h>
 #include <WebCore/SecurityOriginData.h>
 #include <WebCore/Settings.h>
@@ -103,6 +102,7 @@
 #include <wtf/NeverDestroyed.h>
 #include <wtf/ProcessID.h>
 #include <wtf/ProcessPrivilege.h>
+#include <wtf/RuntimeApplicationChecks.h>
 
 #if ENABLE(FULLSCREEN_API)
 #include <WebCore/FullscreenManager.h>
@@ -124,8 +124,9 @@
 namespace WebKit {
 using namespace WebCore;
 
-WebLocalFrameLoaderClient::WebLocalFrameLoaderClient(LocalFrame& localFrame, Ref<WebFrame>&& frame, ScopeExit<Function<void()>>&& invalidator)
-    : WebFrameLoaderClient(WTFMove(frame), WTFMove(invalidator))
+WebLocalFrameLoaderClient::WebLocalFrameLoaderClient(LocalFrame& localFrame, FrameLoader& loader, Ref<WebFrame>&& frame, ScopeExit<Function<void()>>&& invalidator)
+    : LocalFrameLoaderClient(loader)
+    , WebFrameLoaderClient(WTFMove(frame), WTFMove(invalidator))
     , m_localFrame(localFrame)
 {
 }
@@ -1003,6 +1004,11 @@ void WebLocalFrameLoaderClient::updateSandboxFlags(WebCore::SandboxFlags sandbox
     WebFrameLoaderClient::updateSandboxFlags(sandboxFlags);
 }
 
+void WebLocalFrameLoaderClient::updateOpener(const WebCore::Frame& newOpener)
+{
+    WebFrameLoaderClient::updateOpener(newOpener);
+}
+
 void WebLocalFrameLoaderClient::cancelPolicyCheck()
 {
     m_frame->invalidatePolicyListeners();
@@ -1083,9 +1089,9 @@ void WebLocalFrameLoaderClient::setMainFrameDocumentReady(bool)
     notImplemented();
 }
 
-void WebLocalFrameLoaderClient::startDownload(const ResourceRequest& request, const String& suggestedName)
+void WebLocalFrameLoaderClient::startDownload(const ResourceRequest& request, const String& suggestedName, FromDownloadAttribute fromDownloadAttribute)
 {
-    m_frame->startDownload(request, suggestedName);
+    m_frame->startDownload(request, suggestedName, fromDownloadAttribute);
 }
 
 void WebLocalFrameLoaderClient::willChangeTitle(DocumentLoader*)

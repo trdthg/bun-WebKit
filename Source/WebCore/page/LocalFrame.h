@@ -120,7 +120,7 @@ using NodeQualifier = Function<Node* (const HitTestResult&, Node* terminationNod
 
 class LocalFrame final : public Frame {
 public:
-    using ClientCreator = CompletionHandler<UniqueRef<LocalFrameLoaderClient>(LocalFrame&)>;
+    using ClientCreator = CompletionHandler<UniqueRef<LocalFrameLoaderClient>(LocalFrame&, FrameLoader&)>;
     WEBCORE_EXPORT static Ref<LocalFrame> createMainFrame(Page&, ClientCreator&&, FrameIdentifier, SandboxFlags, Frame* opener);
     WEBCORE_EXPORT static Ref<LocalFrame> createSubframe(Page&, ClientCreator&&, FrameIdentifier, SandboxFlags, HTMLFrameOwnerElement&);
     WEBCORE_EXPORT static Ref<LocalFrame> createProvisionalSubframe(Page&, ClientCreator&&, FrameIdentifier, SandboxFlags, Frame& parent);
@@ -163,8 +163,8 @@ public:
 
     const FrameLoader& loader() const { return m_loader.get(); }
     FrameLoader& loader() { return m_loader.get(); }
-    Ref<const FrameLoader> protectedLoader() const;
-    Ref<FrameLoader> protectedLoader();
+    WEBCORE_EXPORT Ref<const FrameLoader> protectedLoader() const;
+    WEBCORE_EXPORT Ref<FrameLoader> protectedLoader();
 
     FrameSelection& selection() { return document()->selection(); }
     const FrameSelection& selection() const { return document()->selection(); }
@@ -330,6 +330,9 @@ public:
     SandboxFlags sandboxFlagsFromSandboxAttributeNotCSP() { return m_sandboxFlags; }
     WEBCORE_EXPORT void updateSandboxFlags(SandboxFlags, NotifyUIProcess) final;
 
+    ScrollbarMode scrollingMode() const { return m_scrollingMode; }
+    WEBCORE_EXPORT void updateScrollingMode() final;
+
 protected:
     void frameWasDisconnectedFromOwner() const final;
 
@@ -384,6 +387,7 @@ private:
 
     float m_pageZoomFactor;
     float m_textZoomFactor;
+    ScrollbarMode m_scrollingMode { ScrollbarMode::Auto };
 
     int m_activeDOMObjectsAndAnimationsSuspendedCount { 0 };
     bool m_documentIsBeingReplaced { false };

@@ -455,7 +455,7 @@ public:
 #if ENABLE(REMOTE_INSPECTOR)
     // FIXME: <http://webkit.org/b/246237> Local inspection should be controlled by `inspectable` API.
     std::unique_ptr<Inspector::JSGlobalObjectInspectorController> m_inspectorController;
-    std::unique_ptr<JSGlobalObjectDebuggable> m_inspectorDebuggable;
+    RefPtr<JSGlobalObjectDebuggable> m_inspectorDebuggable;
 #endif
 
     Ref<WatchpointSet> m_masqueradesAsUndefinedWatchpointSet;
@@ -484,6 +484,7 @@ public:
     InlineWatchpointSet m_arraySpeciesWatchpointSet { ClearWatchpoint };
     InlineWatchpointSet m_arrayJoinWatchpointSet { IsWatched };
     InlineWatchpointSet m_arrayNegativeOneWatchpointSet { IsWatched };
+    InlineWatchpointSet m_arrayIsConcatSpreadableWatchpointSet { IsWatched };
     InlineWatchpointSet m_arrayPrototypeChainIsSaneWatchpointSet { IsWatched };
     InlineWatchpointSet m_objectPrototypeChainIsSaneWatchpointSet { IsWatched };
     InlineWatchpointSet m_stringPrototypeChainIsSaneWatchpointSet { IsWatched };
@@ -520,6 +521,8 @@ public:
     std::unique_ptr<ObjectAdaptiveStructureWatchpoint> m_objectPrototypeSymbolReplaceMissWatchpoint;
     std::unique_ptr<ObjectAdaptiveStructureWatchpoint> m_arrayPrototypeNegativeOneMissWatchpoint;
     std::unique_ptr<ObjectAdaptiveStructureWatchpoint> m_objectPrototypeNegativeOneMissWatchpoint;
+    std::unique_ptr<ObjectAdaptiveStructureWatchpoint> m_arrayPrototypeIsConcatSpreadableMissWatchpoint;
+    std::unique_ptr<ObjectAdaptiveStructureWatchpoint> m_objectPrototypeIsConcatSpreadableMissWatchpoint;
     std::unique_ptr<ObjectPropertyChangeAdaptiveWatchpoint<InlineWatchpointSet>> m_regExpPrototypeExecWatchpoint;
     std::unique_ptr<ObjectPropertyChangeAdaptiveWatchpoint<InlineWatchpointSet>> m_regExpPrototypeGlobalWatchpoint;
     std::unique_ptr<ObjectPropertyChangeAdaptiveWatchpoint<InlineWatchpointSet>> m_regExpPrototypeUnicodeWatchpoint;
@@ -565,6 +568,7 @@ public:
     InlineWatchpointSet& stringPrototypeChainIsSaneWatchpointSet() { return m_stringPrototypeChainIsSaneWatchpointSet; }
     InlineWatchpointSet& arrayJoinWatchpointSet() { return m_arrayJoinWatchpointSet; }
     InlineWatchpointSet& arrayNegativeOneWatchpointSet() { return m_arrayNegativeOneWatchpointSet; }
+    InlineWatchpointSet& arrayIsConcatSpreadableWatchpointSet() { return m_arrayIsConcatSpreadableWatchpointSet; }
     InlineWatchpointSet& numberToStringWatchpointSet()
     {
         RELEASE_ASSERT(Options::useJIT());
@@ -979,7 +983,7 @@ public:
 #if ENABLE(REMOTE_INSPECTOR)
     // FIXME: <http://webkit.org/b/246237> Local inspection should be controlled by `inspectable` API.
     Inspector::JSGlobalObjectInspectorController& inspectorController() const { return *m_inspectorController.get(); }
-    JSGlobalObjectDebuggable& inspectorDebuggable() { return *m_inspectorDebuggable.get(); }
+    JSGlobalObjectDebuggable& inspectorDebuggable() { return *m_inspectorDebuggable; }
 #endif
 
     void bumpGlobalLexicalBindingEpoch(VM&);

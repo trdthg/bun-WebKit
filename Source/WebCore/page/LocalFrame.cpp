@@ -159,7 +159,7 @@ static const LocalFrame& rootFrame(const LocalFrame& frame)
 
 LocalFrame::LocalFrame(Page& page, ClientCreator&& clientCreator, FrameIdentifier identifier, SandboxFlags sandboxFlags, HTMLFrameOwnerElement* ownerElement, Frame* parent, Frame* opener)
     : Frame(page, identifier, FrameType::Local, ownerElement, parent, opener)
-    , m_loader(makeUniqueRef<FrameLoader>(*this, clientCreator(*this)))
+    , m_loader(makeUniqueRef<FrameLoader>(*this, WTFMove(clientCreator)))
     , m_script(makeUniqueRef<ScriptController>(*this))
     , m_pageZoomFactor(parentPageZoomFactor(this))
     , m_textZoomFactor(parentTextZoomFactor(this))
@@ -176,6 +176,8 @@ LocalFrame::LocalFrame(Page& page, ClientCreator&& clientCreator, FrameIdentifie
 #ifndef NDEBUG
     frameCounter.increment();
 #endif
+
+    updateScrollingMode();
 
     // Pause future ActiveDOMObjects if this frame is being created while the page is in a paused state.
     if (RefPtr parent = dynamicDowncast<LocalFrame>(tree().parent()); parent && parent->activeDOMObjectsAndAnimationsSuspended())
@@ -1368,6 +1370,13 @@ void LocalFrame::updateSandboxFlags(SandboxFlags flags, NotifyUIProcess notifyUI
 {
     Frame::updateSandboxFlags(flags, notifyUIProcess);
     m_sandboxFlags = flags;
+}
+
+void LocalFrame::updateScrollingMode()
+{
+    m_scrollingMode = ownerElement() ? ownerElement()->scrollingMode() : ScrollbarMode::Auto;
+    if (RefPtr view = this->view())
+        view->setCanHaveScrollbars(m_scrollingMode != ScrollbarMode::AlwaysOff);
 }
 
 } // namespace WebCore

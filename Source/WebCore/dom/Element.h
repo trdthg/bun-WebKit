@@ -586,7 +586,6 @@ public:
 
     virtual bool isFormListedElement() const { return false; }
     virtual bool isValidatedFormListedElement() const { return false; }
-    virtual bool isFormControlElement() const { return false; }
     virtual bool isMaybeFormAssociatedCustomElement() const { return false; }
     virtual bool isSpinButtonElement() const { return false; }
     virtual bool isTextFormControlElement() const { return false; }
@@ -822,6 +821,7 @@ public:
     bool hasAutoTextDirectionState() const;
 
     void updateEffectiveTextDirection();
+    void updateEffectiveTextDirectionIfNeeded();
 
 protected:
     Element(const QualifiedName&, Document&, OptionSet<TypeFlag>);

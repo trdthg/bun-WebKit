@@ -268,8 +268,6 @@ public:
 private:
     GPUConnectionToWebProcess(GPUProcess&, WebCore::ProcessIdentifier, PAL::SessionID, IPC::Connection::Handle&&, GPUProcessConnectionParameters&&);
 
-    Ref<IPC::Connection> protectedConnection() const { return m_connection.copyRef(); }
-
 #if PLATFORM(COCOA) && USE(LIBWEBRTC)
     Ref<LibWebRTCCodecsProxy> protectedLibWebRTCCodecsProxy() const;
 #endif
@@ -351,6 +349,7 @@ private:
 #if PLATFORM(MAC) && ENABLE(WEBGL)
     void dispatchDisplayWasReconfigured();
 #endif
+    void enableMediaPlaybackIfNecessary();
 
     static uint64_t gObjectCountForTesting;
 
@@ -446,7 +445,7 @@ private:
 #endif
 
 #if ENABLE(ROUTING_ARBITRATION) && HAVE(AVAUDIO_ROUTING_ARBITER)
-    UniqueRef<LocalAudioSessionRoutingArbitrator> m_routingArbitrator;
+    std::unique_ptr<LocalAudioSessionRoutingArbitrator> m_routingArbitrator;
 #endif
 #if ENABLE(IPC_TESTING_API)
     IPCTester m_ipcTester;

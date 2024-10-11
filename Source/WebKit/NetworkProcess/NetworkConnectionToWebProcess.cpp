@@ -311,13 +311,13 @@ bool NetworkConnectionToWebProcess::dispatchMessage(IPC::Connection& connection,
     }
 
     if (decoder.messageReceiverName() == Messages::WebSharedWorkerServerConnection::messageReceiverName()) {
-        if (m_sharedWorkerConnection)
-            m_sharedWorkerConnection->didReceiveMessage(connection, decoder);
+        if (RefPtr sharedWorkerConnection = m_sharedWorkerConnection.get())
+            sharedWorkerConnection->didReceiveMessage(connection, decoder);
         return true;
     }
     if (decoder.messageReceiverName() == Messages::WebSharedWorkerServerToContextConnection::messageReceiverName()) {
-        if (m_sharedWorkerContextConnection)
-            m_sharedWorkerContextConnection->didReceiveMessage(connection, decoder);
+        if (RefPtr sharedWorkerContextConnection = m_sharedWorkerContextConnection)
+            sharedWorkerContextConnection->didReceiveMessage(connection, decoder);
         return true;
     }
 
@@ -495,7 +495,7 @@ NetworkSession* NetworkConnectionToWebProcess::networkSession()
 
 Vector<RefPtr<WebCore::BlobDataFileReference>> NetworkConnectionToWebProcess::resolveBlobReferences(const NetworkResourceLoadParameters& loadParameters)
 {
-    CONNECTION_RELEASE_LOG(Loading, "resolveBlobReferences: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID.toUInt64(), loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
+    CONNECTION_RELEASE_LOG(Loading, "resolveBlobReferences: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID ? loadParameters.webPageProxyID->toUInt64() : 0, loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
 
     auto* session = networkSession();
     if (!session)
@@ -531,7 +531,7 @@ void NetworkConnectionToWebProcess::scheduleResourceLoad(NetworkResourceLoadPara
 
     MESSAGE_CHECK(hasCookieAccess);
 
-    CONNECTION_RELEASE_LOG(Loading, "scheduleResourceLoad: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ", existingLoaderToResume=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID.toUInt64(), loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0, valueOrDefault(existingLoaderToResume).toUInt64());
+    CONNECTION_RELEASE_LOG(Loading, "scheduleResourceLoad: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ", existingLoaderToResume=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID ? loadParameters.webPageProxyID->toUInt64() : 0, loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0, existingLoaderToResume ? existingLoaderToResume->toUInt64() : 0);
 
     if (auto* session = networkSession()) {
         if (Ref server = session->ensureSWServer(); !server->isImportCompleted()) {
@@ -568,8 +568,8 @@ void NetworkConnectionToWebProcess::scheduleResourceLoad(NetworkResourceLoadPara
 
     if (loadParameters.shouldRecordFrameLoadForStorageAccess && loadParameters.mainResourceNavigationDataForAnyFrame) {
         if (auto* session = networkSession()) {
-            if (auto* resourceLoadStatistics = session->resourceLoadStatistics(); resourceLoadStatistics && loadParameters.webFrameID)
-                resourceLoadStatistics->recordFrameLoadForStorageAccess(loadParameters.webPageProxyID, *loadParameters.webFrameID, RegistrableDomain { loadParameters.request.url() });
+            if (auto* resourceLoadStatistics = session->resourceLoadStatistics(); resourceLoadStatistics && loadParameters.webPageProxyID && loadParameters.webFrameID)
+                resourceLoadStatistics->recordFrameLoadForStorageAccess(*loadParameters.webPageProxyID, *loadParameters.webFrameID, RegistrableDomain { loadParameters.request.url() });
         }
     }
 
@@ -580,7 +580,7 @@ void NetworkConnectionToWebProcess::scheduleResourceLoad(NetworkResourceLoadPara
 
 void NetworkConnectionToWebProcess::performSynchronousLoad(NetworkResourceLoadParameters&& loadParameters, CompletionHandler<void(const ResourceError&, const ResourceResponse, Vector<uint8_t>&&)>&& reply)
 {
-    CONNECTION_RELEASE_LOG(Loading, "performSynchronousLoad: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID.toUInt64(), loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
+    CONNECTION_RELEASE_LOG(Loading, "performSynchronousLoad: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID ? loadParameters.webPageProxyID->toUInt64() : 0, loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
 
     auto identifier = loadParameters.identifier;
     RELEASE_ASSERT(identifier);
@@ -601,7 +601,7 @@ void NetworkConnectionToWebProcess::testProcessIncomingSyncMessagesWhenWaitingFo
 
 void NetworkConnectionToWebProcess::loadPing(NetworkResourceLoadParameters&& loadParameters)
 {
-    CONNECTION_RELEASE_LOG(Loading, "loadPing: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID.toUInt64(), loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
+    CONNECTION_RELEASE_LOG(Loading, "loadPing: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID ? loadParameters.webPageProxyID->toUInt64() : 0, loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
 
     auto completionHandler = [connection = m_connection, identifier = *loadParameters.identifier] (const ResourceError& error, const ResourceResponse& response) {
         connection->send(Messages::NetworkProcessConnection::DidFinishPingLoad(identifier, error, response), 0);
@@ -675,7 +675,7 @@ void NetworkConnectionToWebProcess::sendH2Ping(NetworkResourceLoadParameters&& p
 
 void NetworkConnectionToWebProcess::preconnectTo(std::optional<WebCore::ResourceLoaderIdentifier> preconnectionIdentifier, NetworkResourceLoadParameters&& loadParameters)
 {
-    CONNECTION_RELEASE_LOG(Loading, "preconnectTo: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID.toUInt64(), loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
+    CONNECTION_RELEASE_LOG(Loading, "preconnectTo: (parentPID=%d, pageProxyID=%" PRIu64 ", webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", loadParameters.parentPID, loadParameters.webPageProxyID ? loadParameters.webPageProxyID->toUInt64() : 0, loadParameters.webPageID ? loadParameters.webPageID->toUInt64() : 0, loadParameters.webFrameID ? loadParameters.webFrameID->object().toUInt64() : 0, loadParameters.identifier ? loadParameters.identifier->toUInt64() : 0);
 
     ASSERT(!loadParameters.request.httpBody());
 
@@ -721,9 +721,9 @@ NetworkStorageSession* NetworkConnectionToWebProcess::storageSession()
     return protectedNetworkProcess()->storageSession(m_sessionID);
 }
 
-void NetworkConnectionToWebProcess::startDownload(DownloadID downloadID, const ResourceRequest& request, const std::optional<WebCore::SecurityOriginData>& topOrigin, std::optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, const String& suggestedName)
+void NetworkConnectionToWebProcess::startDownload(DownloadID downloadID, const ResourceRequest& request, const std::optional<WebCore::SecurityOriginData>& topOrigin, std::optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, const String& suggestedName, FromDownloadAttribute fromDownloadAttribute)
 {
-    protectedNetworkProcess()->downloadManager().startDownload(m_sessionID, downloadID, request, topOrigin, isNavigatingToAppBoundDomain, suggestedName);
+    protectedNetworkProcess()->downloadManager().startDownload(m_sessionID, downloadID, request, topOrigin, isNavigatingToAppBoundDomain, suggestedName, fromDownloadAttribute);
 }
 
 void NetworkConnectionToWebProcess::convertMainResourceLoadToDownload(std::optional<WebCore::ResourceLoaderIdentifier> mainResourceLoadIdentifier, DownloadID downloadID, const ResourceRequest& request, const std::optional<WebCore::SecurityOriginData>& topOrigin, const ResourceResponse& response, std::optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
@@ -1322,7 +1322,7 @@ void NetworkConnectionToWebProcess::establishSharedWorkerContextConnection(WebPa
     CONNECTION_RELEASE_LOG(SharedWorker, "establishSharedWorkerContextConnection:");
     auto* session = networkSession();
     if (auto* swServer = session ? session->sharedWorkerServer() : nullptr)
-        m_sharedWorkerContextConnection = makeUnique<WebSharedWorkerServerToContextConnection>(*this, WTFMove(registrableDomain), *swServer);
+        m_sharedWorkerContextConnection = WebSharedWorkerServerToContextConnection::create(*this, WTFMove(registrableDomain), *swServer);
     completionHandler();
 }
 
@@ -1338,9 +1338,9 @@ void NetworkConnectionToWebProcess::establishSharedWorkerServerConnection()
     CONNECTION_RELEASE_LOG(SharedWorker, "establishSharedWorkerServerConnection:");
 
     auto& server = session->ensureSharedWorkerServer();
-    auto connection = makeUnique<WebSharedWorkerServerConnection>(m_networkProcess, server, m_connection.get(), m_webProcessIdentifier);
+    auto connection = WebSharedWorkerServerConnection::create(m_networkProcess, server, m_connection.get(), m_webProcessIdentifier);
 
-    m_sharedWorkerConnection = *connection;
+    m_sharedWorkerConnection = connection;
     server.addConnection(WTFMove(connection));
 }
 
@@ -1353,8 +1353,10 @@ void NetworkConnectionToWebProcess::closeSharedWorkerContextConnection()
 void NetworkConnectionToWebProcess::unregisterSharedWorkerConnection()
 {
     CONNECTION_RELEASE_LOG(SharedWorker, "unregisterSharedWorkerConnection:");
-    if (m_sharedWorkerConnection)
-        m_sharedWorkerConnection->server().removeConnection(m_sharedWorkerConnection->webProcessIdentifier());
+    if (RefPtr connection = m_sharedWorkerConnection.get()) {
+        if (CheckedPtr server = connection->server())
+            server->removeConnection(m_sharedWorkerConnection->webProcessIdentifier());
+    }
 }
 
 void NetworkConnectionToWebProcess::sharedWorkerServerToContextConnectionIsNoLongerNeeded()

@@ -47,7 +47,7 @@ class PlatformWheelEvent;
 class WheelEventDeltaFilter;
 struct WheelEventHandlingResult;
 struct ScrollingNodeIDType;
-using ScrollingNodeID = ProcessQualified<LegacyNullableObjectIdentifier<ScrollingNodeIDType>>;
+using ScrollingNodeID = ProcessQualified<ObjectIdentifier<ScrollingNodeIDType>>;
 enum class WheelScrollGestureState : uint8_t;
 enum class WheelEventProcessingSteps : uint8_t;
 };
@@ -67,6 +67,7 @@ class RemoteLayerTreeEventDispatcherDisplayLinkClient;
 // be main-thread only. It's the UI-process analogue of WebPage/EventDispatcher.
 class RemoteLayerTreeEventDispatcher : public ThreadSafeRefCounted<RemoteLayerTreeEventDispatcher>, public MomentumEventDispatcher::Client {
     WTF_MAKE_TZONE_ALLOCATED(RemoteLayerTreeEventDispatcher);
+    WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(RemoteLayerTreeEventDispatcher);
     friend class RemoteLayerTreeEventDispatcherDisplayLinkClient;
 public:
     static Ref<RemoteLayerTreeEventDispatcher> create(RemoteScrollingCoordinatorProxyMac&, WebCore::PageIdentifier);

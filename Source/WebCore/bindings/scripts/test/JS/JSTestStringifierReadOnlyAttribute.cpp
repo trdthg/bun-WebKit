@@ -173,7 +173,7 @@ static inline JSValue jsTestStringifierReadOnlyAttribute_identifierGetter(JSGlob
 {
     SUPPRESS_UNCOUNTED_LOCAL auto& vm = JSC::getVM(&lexicalGlobalObject);
     auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
     RELEASE_AND_RETURN(throwScope, (toJS<IDLDOMString>(lexicalGlobalObject, throwScope, impl.identifier())));
 }
 
@@ -188,7 +188,7 @@ static inline JSC::EncodedJSValue jsTestStringifierReadOnlyAttributePrototypeFun
     auto throwScope = DECLARE_THROW_SCOPE(vm);
     UNUSED_PARAM(throwScope);
     UNUSED_PARAM(callFrame);
-    auto& impl = castedThis->wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = castedThis->wrapped();
     RELEASE_AND_RETURN(throwScope, JSValue::encode(toJS<IDLDOMString>(*lexicalGlobalObject, throwScope, impl.identifier())));
 }
 
@@ -211,8 +211,8 @@ void JSTestStringifierReadOnlyAttribute::analyzeHeap(JSCell* cell, HeapAnalyzer&
 {
     auto* thisObject = jsCast<JSTestStringifierReadOnlyAttribute*>(cell);
     analyzer.setWrappedObjectForCell(cell, &thisObject->wrapped());
-    if (thisObject->scriptExecutionContext())
-        analyzer.setLabelForCell(cell, makeString("url "_s, thisObject->scriptExecutionContext()->url().string()));
+    if (RefPtr context = thisObject->scriptExecutionContext())
+        analyzer.setLabelForCell(cell, makeString("url "_s, context->url().string()));
     Base::analyzeHeap(cell, analyzer);
 }
 

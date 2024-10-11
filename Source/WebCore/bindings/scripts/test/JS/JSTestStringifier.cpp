@@ -172,7 +172,7 @@ static inline JSC::EncodedJSValue jsTestStringifierPrototypeFunction_toStringBod
     auto throwScope = DECLARE_THROW_SCOPE(vm);
     UNUSED_PARAM(throwScope);
     UNUSED_PARAM(callFrame);
-    auto& impl = castedThis->wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = castedThis->wrapped();
     RELEASE_AND_RETURN(throwScope, JSValue::encode(toJS<IDLDOMString>(*lexicalGlobalObject, throwScope, impl.toString())));
 }
 
@@ -195,8 +195,8 @@ void JSTestStringifier::analyzeHeap(JSCell* cell, HeapAnalyzer& analyzer)
 {
     auto* thisObject = jsCast<JSTestStringifier*>(cell);
     analyzer.setWrappedObjectForCell(cell, &thisObject->wrapped());
-    if (thisObject->scriptExecutionContext())
-        analyzer.setLabelForCell(cell, makeString("url "_s, thisObject->scriptExecutionContext()->url().string()));
+    if (RefPtr context = thisObject->scriptExecutionContext())
+        analyzer.setLabelForCell(cell, makeString("url "_s, context->url().string()));
     Base::analyzeHeap(cell, analyzer);
 }
 

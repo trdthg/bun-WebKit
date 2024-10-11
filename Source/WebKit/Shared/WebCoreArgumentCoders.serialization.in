@@ -2166,6 +2166,10 @@ struct WebCore::WindowFeatures {
     std::optional<bool> scrollbarsVisible;
     std::optional<bool> resizable;
 
+#if PLATFORM(GTK)
+    WebCore::FloatRect oldWindowRect;
+#endif
+
     std::optional<bool> fullscreen;
     std::optional<bool> dialog;
     std::optional<bool> noopener;
@@ -2521,6 +2525,7 @@ class WebCore::SelectionGeometry {
     bool containsStart();
     bool containsEnd();
     bool isHorizontal();
+    bool mayAppearLogicallyDiscontiguous();
 };
 #endif
 
@@ -2718,7 +2723,7 @@ struct WebCore::TextManipulationItem {
     Markable<WebCore::FrameIdentifier> frameID;
     bool isSubframe;
     bool isCrossSiteSubframe;
-    WebCore::TextManipulationItemIdentifier identifier;
+    Markable<WebCore::TextManipulationItemIdentifier> identifier;
     Vector<WebCore::TextManipulationToken> tokens;
 }
 
@@ -4359,7 +4364,7 @@ header: <WebCore/TextManipulationController.h>
 header: <WebCore/TextManipulationController.h>
 [CustomHeader] struct WebCore::TextManipulationControllerManipulationFailure {
     WebCore::FrameIdentifier frameID;
-    WebCore::TextManipulationItemIdentifier identifier;
+    Markable<WebCore::TextManipulationItemIdentifier> identifier;
     uint64_t index;
     WebCore::TextManipulationControllerManipulationFailure::Type type;
 };
@@ -5021,7 +5026,8 @@ enum class WebCore::CrossOriginOpenerPolicyValue : uint8_t {
     UnsafeNone,
     SameOrigin,
     SameOriginPlusCOEP,
-    SameOriginAllowPopups
+    SameOriginAllowPopups,
+    NoopenerAllowPopups
 };
 
 struct WebCore::CrossOriginOpenerPolicy {

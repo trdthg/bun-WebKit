@@ -307,7 +307,7 @@ void WebChromeClient::focusedFrameChanged(Frame* frame)
     WebProcess::singleton().parentProcessConnection()->send(Messages::WebPageProxy::FocusedFrameChanged(webFrame ? std::make_optional(webFrame->frameID()) : std::nullopt), page().identifier());
 }
 
-Page* WebChromeClient::createWindow(LocalFrame& frame, const WindowFeatures& windowFeatures, const NavigationAction& navigationAction)
+RefPtr<Page> WebChromeClient::createWindow(LocalFrame& frame, const WindowFeatures& windowFeatures, const NavigationAction& navigationAction)
 {
 #if ENABLE(FULLSCREEN_API)
     if (RefPtr document = frame.document())
@@ -866,9 +866,9 @@ bool WebChromeClient::canShowDataListSuggestionLabels() const
 
 #if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 
-std::unique_ptr<DateTimeChooser> WebChromeClient::createDateTimeChooser(DateTimeChooserClient& client)
+RefPtr<DateTimeChooser> WebChromeClient::createDateTimeChooser(DateTimeChooserClient& client)
 {
-    return makeUnique<WebDateTimeChooser>(protectedPage(), client);
+    return WebDateTimeChooser::create(protectedPage(), client);
 }
 
 #endif

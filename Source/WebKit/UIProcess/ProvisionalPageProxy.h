@@ -105,6 +105,7 @@ public:
     WebCore::PageIdentifier webPageID() const { return m_webPageID; }
     WebFrameProxy* mainFrame() const { return m_mainFrame.get(); }
     BrowsingContextGroup& browsingContextGroup() { return m_browsingContextGroup.get(); }
+    Ref<BrowsingContextGroup> protectedBrowsingContextGroup();
     WebProcessProxy& process();
     Ref<WebProcessProxy> protectedProcess();
     ProcessSwapRequestedByClient processSwapRequestedByClient() const { return m_processSwapRequestedByClient; }
@@ -181,7 +182,7 @@ private:
     void startURLSchemeTask(IPC::Connection&, URLSchemeTaskParameters&&);
     void backForwardGoToItem(const WebCore::BackForwardItemIdentifier&, CompletionHandler<void(const WebBackForwardListCounts&)>&&);
     void decidePolicyForNavigationActionSync(NavigationActionData&&, CompletionHandler<void(PolicyDecision&&)>&&);
-    void backForwardAddItem(WebCore::FrameIdentifier, Ref<FrameState>&&);
+    void backForwardAddItem(IPC::Connection&, WebCore::FrameIdentifier, Ref<FrameState>&&);
     void didDestroyNavigation(WebCore::NavigationIdentifier);
 #if USE(QUICK_LOOK)
     void requestPasswordForQuickLookDocumentInMainFrame(const String& fileName, CompletionHandler<void(const String&)>&&);
@@ -234,7 +235,7 @@ private:
     CompletionHandler<void(String&&)> m_accessibilityBindCompletionHandler;
 #endif
 #if USE(RUNNINGBOARD)
-    UniqueRef<ProcessThrottler::ForegroundActivity> m_provisionalLoadActivity;
+    Ref<ProcessThrottler::ForegroundActivity> m_provisionalLoadActivity;
 #endif
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
     LayerHostingContextID m_contextIDForVisibilityPropagationInWebProcess { 0 };

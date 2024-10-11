@@ -214,11 +214,14 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
         applyBasicAuthorizationHeader(request, m_initialCredential);
     }
 
-    bool shouldBlockCookies = false;
-    shouldBlockCookies = m_storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::EphemeralStateless;
+    const auto shouldBlockCookies = [](WebCore::ThirdPartyCookieBlockingDecision thirdPartyCookieBlockingDecision) {
+        return thirdPartyCookieBlockingDecision == WebCore::ThirdPartyCookieBlockingDecision::All;
+    };
+
+    auto thirdPartyCookieBlockingDecision = m_storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::EphemeralStateless ? WebCore::ThirdPartyCookieBlockingDecision::All : WebCore::ThirdPartyCookieBlockingDecision::None;
     if (auto* networkStorageSession = session.networkStorageSession()) {
-        if (!shouldBlockCookies)
-            shouldBlockCookies = networkStorageSession->shouldBlockCookies(request, frameID(), pageID(), shouldRelaxThirdPartyCookieBlocking());
+        if (!shouldBlockCookies(thirdPartyCookieBlockingDecision))
+            thirdPartyCookieBlockingDecision = networkStorageSession->thirdPartyCookieBlockingDecisionForRequest(request, frameID(), pageID(), shouldRelaxThirdPartyCookieBlocking());
     }
     restrictRequestReferrerToOriginIfNeeded(request);
 
@@ -317,7 +320,7 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
 
     if (!isTopLevelNavigation())
         applyCookiePolicyForThirdPartyCloaking(request);
-    if (shouldBlockCookies) {
+    if (shouldBlockCookies(thirdPartyCookieBlockingDecision)) {
 #if !RELEASE_LOG_DISABLED
         if (m_session->shouldLogCookieInformation())
             RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), Network, "%p - NetworkDataTaskCocoa::logCookieInformation: pageID=%" PRIu64 ", frameID=%" PRIu64 ", taskID=%lu: Blocking cookies for URL %s", this, pageID() ? pageID()->toUInt64() : 0, frameID() ? frameID()->object().toUInt64() : 0, (unsigned long)[m_task taskIdentifier], [nsRequest URL].absoluteString.UTF8String);
@@ -405,7 +408,7 @@ void NetworkDataTaskCocoa::didReceiveResponse(WebCore::ResourceResponse&& respon
 #if ENABLE(NETWORK_ISSUE_REPORTING)
     else if (NetworkIssueReporter::shouldReport([m_task _incompleteTaskMetrics])) {
         if (auto session = networkSession())
-            session->reportNetworkIssue(m_webPageProxyID, firstRequest().url());
+            session->reportNetworkIssue(*m_webPageProxyID, firstRequest().url());
     }
 #endif
     NetworkDataTask::didReceiveResponse(WTFMove(response), negotiatedLegacyTLS, privateRelayed, WebCore::IPAddress::fromString(lastRemoteIPAddress(m_task.get())), WTFMove(completionHandler));

@@ -83,7 +83,7 @@ struct GlobalFrameIDHash {
 };
 
 template<> struct HashTraits<WebKit::NetworkCache::GlobalFrameID> : GenericHashTraits<WebKit::NetworkCache::GlobalFrameID> {
-    static WebKit::NetworkCache::GlobalFrameID emptyValue() { return { { }, HashTraits<WebCore::PageIdentifier>::emptyValue(), HashTraits<WebCore::FrameIdentifier>::emptyValue() }; }
+    static WebKit::NetworkCache::GlobalFrameID emptyValue() { return { HashTraits<WebKit::WebPageProxyIdentifier>::emptyValue(), HashTraits<WebCore::PageIdentifier>::emptyValue(), HashTraits<WebCore::FrameIdentifier>::emptyValue() }; }
     static bool isEmptyValue(const WebKit::NetworkCache::GlobalFrameID& slot) { return slot.webPageID.isHashTableEmptyValue(); }
 
     static void constructDeletedValue(WebKit::NetworkCache::GlobalFrameID& slot) { new (NotNull, &slot.webPageID) WebCore::PageIdentifier(WTF::HashTableDeletedValue); }
@@ -235,7 +235,7 @@ private:
 #endif
 
 #if ENABLE(NETWORK_CACHE_STALE_WHILE_REVALIDATE)
-    HashMap<Key, std::unique_ptr<AsyncRevalidation>> m_pendingAsyncRevalidations;
+    HashMap<Key, Ref<AsyncRevalidation>> m_pendingAsyncRevalidations;
     HashMap<GlobalFrameID, WeakHashSet<AsyncRevalidation>> m_pendingAsyncRevalidationByPage;
 #endif
 

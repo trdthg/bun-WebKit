@@ -334,8 +334,8 @@ using SessionID = WTF::UUID;
 template<typename> class ProcessQualified;
 template<typename> class RectEdges;
 
-using BackForwardItemIdentifier = ProcessQualified<LegacyNullableObjectIdentifier<BackForwardItemIdentifierType>>;
-using DictationContext = LegacyNullableObjectIdentifier<DictationContextType>;
+using BackForwardItemIdentifier = ProcessQualified<ObjectIdentifier<BackForwardItemIdentifierType>>;
+using DictationContext = ObjectIdentifier<DictationContextType>;
 using FloatBoxExtent = RectEdges<float>;
 using FramesPerSecond = unsigned;
 using IntDegrees = int32_t;
@@ -353,9 +353,9 @@ using PlaybackTargetClientContextIdentifier = LegacyNullableObjectIdentifier<Pla
 using PointerID = uint32_t;
 using ResourceLoaderIdentifier = AtomicObjectIdentifier<ResourceLoader>;
 using SandboxFlags = OptionSet<SandboxFlag>;
-using ScrollingNodeID = ProcessQualified<LegacyNullableObjectIdentifier<ScrollingNodeIDType>>;
-using SleepDisablerIdentifier = LegacyNullableObjectIdentifier<SleepDisablerIdentifierType>;
-using UserMediaRequestIdentifier = LegacyNullableObjectIdentifier<UserMediaRequestIdentifierType>;
+using ScrollingNodeID = ProcessQualified<ObjectIdentifier<ScrollingNodeIDType>>;
+using SleepDisablerIdentifier = ObjectIdentifier<SleepDisablerIdentifierType>;
+using UserMediaRequestIdentifier = ObjectIdentifier<UserMediaRequestIdentifierType>;
 
 } // namespace WebCore
 
@@ -452,6 +452,7 @@ class VisitedLinkStore;
 class WebAuthenticatorCoordinatorProxy;
 class WebBackForwardCache;
 class WebBackForwardList;
+class WebBackForwardListFrameItem;
 class WebBackForwardListItem;
 class WebColorPickerClient;
 class WebContextMenuItemData;
@@ -582,7 +583,7 @@ template<typename> class MonotonicObjectIdentifier;
 using ActivityStateChangeID = uint64_t;
 using GeolocationIdentifier = ObjectIdentifier<GeolocationIdentifierType>;
 using LayerHostingContextID = uint32_t;
-using NetworkResourceLoadIdentifier = LegacyNullableObjectIdentifier<NetworkResourceLoadIdentifierType>;
+using NetworkResourceLoadIdentifier = ObjectIdentifier<NetworkResourceLoadIdentifierType>;
 using PDFPluginIdentifier = ObjectIdentifier<PDFPluginIdentifierType>;
 using PlaybackSessionContextIdentifier = WebCore::HTMLMediaElementIdentifier;
 using SnapshotOptions = OptionSet<SnapshotOption>;
@@ -591,7 +592,7 @@ using SpellDocumentTag = int64_t;
 using TapIdentifier = ObjectIdentifier<TapIdentifierType>;
 using TextCheckerRequestID = ObjectIdentifier<TextCheckerRequestType>;
 using TransactionID = MonotonicObjectIdentifier<TransactionIDType>;
-using WebPageProxyIdentifier = LegacyNullableObjectIdentifier<WebPageProxyIdentifierType>;
+using WebPageProxyIdentifier = ObjectIdentifier<WebPageProxyIdentifierType>;
 using WebURLSchemeHandlerIdentifier = ObjectIdentifier<WebURLSchemeHandler>;
 using WebUndoStepID = uint64_t;
 
@@ -637,7 +638,7 @@ public:
     bool shouldEnableLockdownMode() const;
 
     bool hasSameGPUAndNetworkProcessPreferencesAs(const API::PageConfiguration&) const;
-    bool hasSameGPUAndNetworkProcessPreferencesAs(const WebPageProxy& page) const { return hasSameGPUAndNetworkProcessPreferencesAs(page.configuration()); }
+    bool hasSameGPUAndNetworkProcessPreferencesAs(const WebPageProxy& page) const { return hasSameGPUAndNetworkProcessPreferencesAs(Ref { page }->configuration()); }
 
     void processIsNoLongerAssociatedWithPage(WebProcessProxy&);
 
@@ -727,6 +728,7 @@ public:
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
     PlaybackSessionManagerProxy* playbackSessionManager();
+    RefPtr<PlaybackSessionManagerProxy> protectedPlaybackSessionManager();
     VideoPresentationManagerProxy* videoPresentationManager();
     void setMockVideoPresentationModeEnabled(bool);
 #endif
@@ -1319,6 +1321,9 @@ public:
     double viewScaleFactor() const { return m_viewScaleFactor; }
     void scaleView(double scale);
     void setShouldScaleViewToFitDocument(bool);
+#if ENABLE(PDF_PLUGIN)
+    void setPluginScaleFactor(double scaleFactor, WebCore::IntPoint origin);
+#endif
     
     float deviceScaleFactor() const;
     void setIntrinsicDeviceScaleFactor(float);
@@ -1528,7 +1533,7 @@ public:
     void processDidBecomeResponsive();
     void resetStateAfterProcessTermination(ProcessTerminationReason);
     void provisionalProcessDidTerminate();
-    void dispatchProcessDidTerminate(ProcessTerminationReason);
+    void dispatchProcessDidTerminate(WebProcessProxy&, ProcessTerminationReason);
     void willChangeProcessIsResponsive();
     void didChangeProcessIsResponsive();
 
@@ -2056,7 +2061,7 @@ public:
     void startURLSchemeTaskShared(IPC::Connection&, Ref<WebProcessProxy>&&, WebCore::PageIdentifier, URLSchemeTaskParameters&&);
     void loadDataWithNavigationShared(Ref<WebProcessProxy>&&, WebCore::PageIdentifier, API::Navigation&, Ref<WebCore::SharedBuffer>&&, const String& MIMEType, const String& encoding, const String& baseURL, API::Object* userData, WebCore::ShouldTreatAsContinuingLoad, std::optional<NavigatingToAppBoundDomain>, std::optional<WebsitePoliciesData>&&, WebCore::ShouldOpenExternalURLsPolicy, WebCore::SessionHistoryVisibility);
     void loadRequestWithNavigationShared(Ref<WebProcessProxy>&&, WebCore::PageIdentifier, API::Navigation&, WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy, WebCore::IsPerformingHTTPFallback, API::Object* userData, WebCore::ShouldTreatAsContinuingLoad, std::optional<NavigatingToAppBoundDomain>, std::optional<WebsitePoliciesData>&&, std::optional<NetworkResourceLoadIdentifier> existingNetworkResourceLoadIdentifierToResume);
-    void backForwardAddItemShared(Ref<WebProcessProxy>&&, WebCore::FrameIdentifier, Ref<FrameState>&&, LoadedWebArchive);
+    void backForwardAddItemShared(IPC::Connection&, WebCore::FrameIdentifier, Ref<FrameState>&&, LoadedWebArchive);
     void backForwardGoToItemShared(const WebCore::BackForwardItemIdentifier&, CompletionHandler<void(const WebBackForwardListCounts&)>&&);
     void decidePolicyForNavigationActionSyncShared(Ref<WebProcessProxy>&&, NavigationActionData&&, CompletionHandler<void(PolicyDecision&&)>&&);
     void didDestroyNavigationShared(Ref<WebProcessProxy>&&, WebCore::NavigationIdentifier);
@@ -2474,6 +2479,10 @@ public:
     void didEndPartialIntelligenceTextAnimationImpl();
 #endif
 
+#if PLATFORM(COCOA)
+    void createTextIndicatorForElementWithID(const String& elementID, CompletionHandler<void(std::optional<WebCore::TextIndicatorData>&&)>&&);
+#endif
+
     void resetVisibilityAdjustmentsForTargetedElements(const Vector<Ref<API::TargetedElementInfo>>&, CompletionHandler<void(bool)>&&);
     void adjustVisibilityForTargetedElements(const Vector<Ref<API::TargetedElementInfo>>&, CompletionHandler<void(bool)>&&);
     void numberOfVisibilityAdjustmentRects(CompletionHandler<void(uint64_t)>&&);
@@ -2552,7 +2561,7 @@ private:
 
     bool canCreateFrame(WebCore::FrameIdentifier) const;
 
-    RefPtr<API::Navigation> goToBackForwardItem(WebBackForwardListItem&, WebCore::FrameLoadType);
+    RefPtr<API::Navigation> goToBackForwardItem(WebBackForwardListItem&, WebBackForwardListFrameItem&, WebCore::FrameLoadType);
 
     void updateActivityState(OptionSet<WebCore::ActivityState> flagsToUpdate);
     void updateThrottleState();
@@ -2612,6 +2621,7 @@ private:
 
     void updateRemoteFrameSize(WebCore::FrameIdentifier, WebCore::IntSize);
     void updateSandboxFlags(IPC::Connection&, WebCore::FrameIdentifier, WebCore::SandboxFlags);
+    void updateOpener(IPC::Connection&, WebCore::FrameIdentifier, WebCore::FrameIdentifier);
 
     void didDestroyNavigation(WebCore::NavigationIdentifier);
 
@@ -2759,10 +2769,11 @@ private:
     std::optional<IPC::AsyncReplyID> willPerformPasteCommand(WebCore::DOMPasteAccessCategory, CompletionHandler<void()>&&, std::optional<WebCore::FrameIdentifier> = std::nullopt);
 
     // Back/Forward list management
-    void backForwardAddItem(WebCore::FrameIdentifier, Ref<FrameState>&&);
+    void backForwardAddItem(IPC::Connection&, WebCore::FrameIdentifier, Ref<FrameState>&&);
+    void backForwardSetChildItem(WebCore::BackForwardItemIdentifier, Ref<FrameState>&&);
     void backForwardGoToItem(const WebCore::BackForwardItemIdentifier&, CompletionHandler<void(const WebBackForwardListCounts&)>&&);
     void backForwardListContainsItem(const WebCore::BackForwardItemIdentifier&, CompletionHandler<void(bool)>&&);
-    void backForwardItemAtIndex(IPC::Connection&, int32_t index, CompletionHandler<void(std::optional<WebCore::BackForwardItemIdentifier>&&)>&&);
+    void backForwardItemAtIndex(int32_t index, WebCore::FrameIdentifier, CompletionHandler<void(std::optional<WebCore::BackForwardItemIdentifier>&&)>&&);
     void backForwardListCounts(CompletionHandler<void(WebBackForwardListCounts&&)>&&);
     void backForwardClear();
 
@@ -3175,6 +3186,8 @@ private:
     bool hasValidOpeningAppLinkActivity() const;
 #endif
 
+    Ref<BrowsingContextGroup> protectedBrowsingContextGroup() const;
+
     UniqueRef<Internals> m_internals;
     Identifier m_identifier;
     WebCore::PageIdentifier m_webPageID;
@@ -3557,7 +3570,7 @@ private:
 
     const std::unique_ptr<WebPageInspectorController> m_inspectorController;
 #if ENABLE(REMOTE_INSPECTOR)
-    std::unique_ptr<WebPageDebuggable> m_inspectorDebuggable;
+    RefPtr<WebPageDebuggable> m_inspectorDebuggable;
 #endif
 
     std::optional<SpellDocumentTag> m_spellDocumentTag;

@@ -110,8 +110,9 @@ class UserMessageHandlerDescriptor;
 
 class EmptyBackForwardClient final : public BackForwardClient {
     void addItem(FrameIdentifier, Ref<HistoryItem>&&) final { }
+    void setChildItem(BackForwardItemIdentifier, Ref<HistoryItem>&&) final { }
     void goToItem(HistoryItem&) final { }
-    RefPtr<HistoryItem> itemAtIndex(int) final { return nullptr; }
+    RefPtr<HistoryItem> itemAtIndex(int, FrameIdentifier) final { return nullptr; }
     unsigned backListCount() const final { return 0; }
     unsigned forwardListCount() const final { return 0; }
     bool containsItem(const HistoryItem&) const final { return false; }
@@ -562,7 +563,7 @@ std::unique_ptr<DataListSuggestionPicker> EmptyChromeClient::createDataListSugge
 
 #if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 
-std::unique_ptr<DateTimeChooser> EmptyChromeClient::createDateTimeChooser(DateTimeChooserClient&)
+RefPtr<DateTimeChooser> EmptyChromeClient::createDateTimeChooser(DateTimeChooserClient&)
 {
     return nullptr;
 }
@@ -600,6 +601,10 @@ void EmptyFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navig
 }
 
 void EmptyFrameLoaderClient::updateSandboxFlags(SandboxFlags)
+{
+}
+
+void EmptyFrameLoaderClient::updateOpener(const Frame&)
 {
 }
 
@@ -838,7 +843,7 @@ void EmptyFrameLoaderClient::setMainFrameDocumentReady(bool)
 {
 }
 
-void EmptyFrameLoaderClient::startDownload(const ResourceRequest&, const String&)
+void EmptyFrameLoaderClient::startDownload(const ResourceRequest&, const String&, FromDownloadAttribute)
 {
 }
 
@@ -1217,8 +1222,8 @@ PageConfiguration pageConfigurationWithEmptyClients(std::optional<PageIdentifier
         CookieJar::create(adoptRef(*new EmptyStorageSessionProvider)),
         makeUniqueRef<EmptyProgressTrackerClient>(),
         PageConfiguration::LocalMainFrameCreationParameters {
-            CompletionHandler<UniqueRef<LocalFrameLoaderClient>(LocalFrame&)> { [] (auto&) {
-                return makeUniqueRef<EmptyFrameLoaderClient>();
+            CompletionHandler<UniqueRef<LocalFrameLoaderClient>(LocalFrame&, FrameLoader&)> { [] (auto&, auto& frameLoader) {
+                return makeUniqueRef<EmptyFrameLoaderClient>(frameLoader);
             } },
             SandboxFlags::all(),
         },

@@ -305,7 +305,7 @@ bool JSTestNamedSetterNoIdentifier::defineOwnProperty(JSObject* object, JSGlobal
 bool JSTestNamedSetterNoIdentifier::deleteProperty(JSCell* cell, JSGlobalObject* lexicalGlobalObject, PropertyName propertyName, DeletePropertySlot& slot)
 {
     auto& thisObject = *jsCast<JSTestNamedSetterNoIdentifier*>(cell);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
 
     // Temporary quirk for ungap/@custom-elements polyfill (rdar://problem/111008826), consider removing in 2025.
     if (auto* document = dynamicDowncast<Document>(jsDynamicCast<JSDOMGlobalObject*>(lexicalGlobalObject)->scriptExecutionContext())) {
@@ -325,7 +325,7 @@ bool JSTestNamedSetterNoIdentifier::deletePropertyByIndex(JSCell* cell, JSGlobal
 {
     UNUSED_PARAM(lexicalGlobalObject);
     auto& thisObject = *jsCast<JSTestNamedSetterNoIdentifier*>(cell);
-    auto& impl = thisObject.wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = thisObject.wrapped();
 
     // Temporary quirk for ungap/@custom-elements polyfill (rdar://problem/111008826), consider removing in 2025.
     if (auto* document = dynamicDowncast<Document>(jsDynamicCast<JSDOMGlobalObject*>(lexicalGlobalObject)->scriptExecutionContext())) {
@@ -367,8 +367,8 @@ void JSTestNamedSetterNoIdentifier::analyzeHeap(JSCell* cell, HeapAnalyzer& anal
 {
     auto* thisObject = jsCast<JSTestNamedSetterNoIdentifier*>(cell);
     analyzer.setWrappedObjectForCell(cell, &thisObject->wrapped());
-    if (thisObject->scriptExecutionContext())
-        analyzer.setLabelForCell(cell, makeString("url "_s, thisObject->scriptExecutionContext()->url().string()));
+    if (RefPtr context = thisObject->scriptExecutionContext())
+        analyzer.setLabelForCell(cell, makeString("url "_s, context->url().string()));
     Base::analyzeHeap(cell, analyzer);
 }
 

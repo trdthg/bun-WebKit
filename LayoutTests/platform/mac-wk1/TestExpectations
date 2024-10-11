@@ -27,6 +27,8 @@ editing/pasteboard/file-input-files-access-promise.html [ Pass ]
 fast/shadow-dom/dragging-element-with-shadow-tree.html [ Pass ]
 fast/shadow-dom/dragging-element-inside-shadow-tree.html [ Pass ]
 http/tests/security/clipboard/drag-drop-html-cross-origin-iframe-in-same-origin.html [ Pass ]
+http/tests/download/anchor-download-redirect-cross-origin.html [ Skip ]
+http/tests/download/anchor-download-redirect-same-origin.html [ Skip ]
 
 http/tests/security/xss-DENIED-xsl-external-entity-no-logging.xml [ Pass ]
 
@@ -748,12 +750,12 @@ imported/w3c/web-platform-tests/web-locks/resource-names.tentative.https.any.sha
 imported/w3c/web-platform-tests/web-locks/secure-context.tentative.https.any.sharedworker.html [ Skip ]
 imported/w3c/web-platform-tests/web-locks/signal.tentative.https.any.sharedworker.html [ Skip ]
 imported/w3c/web-platform-tests/web-locks/steal.tentative.https.any.sharedworker.html [ Skip ]
-imported/w3c/web-platform-tests/websockets/bufferedAmount-unchanged-by-sync-xhr.any.sharedworker.html [ Skip ]
+imported/w3c/web-platform-tests/websockets/bufferedAmount-unchanged-by-sync-xhr.any.sharedworker.html?default [ Skip ]
 imported/w3c/web-platform-tests/websockets/mixed-content.https.any.serviceworker.html [ Skip ]
 imported/w3c/web-platform-tests/websockets/mixed-content.https.any.sharedworker.html [ Skip ]
-imported/w3c/web-platform-tests/websockets/send-many-64K-messages-with-backpressure.any.serviceworker.html [ Skip ]
+imported/w3c/web-platform-tests/websockets/send-many-64K-messages-with-backpressure.any.serviceworker.html?default [ Skip ]
 imported/w3c/web-platform-tests/websockets/send-many-64K-messages-with-backpressure.any.serviceworker.html?wss [ Skip ]
-imported/w3c/web-platform-tests/websockets/send-many-64K-messages-with-backpressure.any.sharedworker.html [ Skip ]
+imported/w3c/web-platform-tests/websockets/send-many-64K-messages-with-backpressure.any.sharedworker.html?default [ Skip ]
 imported/w3c/web-platform-tests/websockets/send-many-64K-messages-with-backpressure.any.sharedworker.html?wss [ Skip ]
 imported/w3c/web-platform-tests/workers/SharedWorker_blobUrl.html [ Skip ]
 imported/w3c/web-platform-tests/workers/SharedWorker-constructor.html [ Skip ]
@@ -946,20 +948,20 @@ editing/async-clipboard/clipboard-read-text-from-platform.html [ Skip ]
 editing/async-clipboard/clipboard-read-text-same-origin.html [ Skip ]
 editing/async-clipboard/sanitize-when-reading-markup.html [ Skip ]
 
-imported/w3c/web-platform-tests/websockets/Close-1000-reason.any.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/Close-1000-reason.any.worker.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/binary/001.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/closing-handshake/002.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/closing-handshake/003.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/constructor/006.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/constructor/009.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/cookies/001.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/cookies/002.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/interfaces/CloseEvent/clean-close.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/bufferedAmount/bufferedAmount-arraybuffer.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/bufferedAmount/bufferedAmount-blob.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/events/015.html [ Pass Failure ]
-imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/readyState/006.html [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/Close-1000-reason.any.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/Close-1000-reason.any.worker.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/binary/001.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/closing-handshake/002.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/closing-handshake/003.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/constructor/006.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/constructor/009.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/cookies/001.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/cookies/002.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/interfaces/CloseEvent/clean-close.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/bufferedAmount/bufferedAmount-arraybuffer.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/bufferedAmount/bufferedAmount-blob.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/events/015.html?default [ Pass Failure ]
+imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/readyState/006.html?default [ Pass Failure ]
 
 # ShouldSuppressTextInputFromEditingDuringProvisionalNavigation not supported in WK1
 http/tests/navigation/keyboard-events-during-provisional-navigation.html [ Skip ]
@@ -1173,11 +1175,16 @@ imported/w3c/web-platform-tests/css/css-view-transitions [ Skip ]
 # AXTextOperation layout tests are not available for WK1.
 accessibility/mac/text-operation/text-operation-capitalize.html [ Skip ]
 accessibility/mac/text-operation/text-operation-lowercase.html [ Skip ]
+accessibility/mac/text-operation/text-operation-replace-across-multiple-fields.html [ Skip ]
+accessibility/mac/text-operation/text-operation-replace-at-node-boundary.html [ Skip ]
 accessibility/mac/text-operation/text-operation-replace-preserve-case.html [ Skip ]
 accessibility/mac/text-operation/text-operation-replace.html [ Skip ]
 accessibility/mac/text-operation/text-operation-select.html [ Skip ]
 accessibility/mac/text-operation/text-operation-smart-replace.html [ Skip ]
 accessibility/mac/text-operation/text-operation-uppercase.html [ Skip ]
+
+# Skipping because AXTextMarkerRangeIsValid is not supported on WK1.
+accessibility/mac/dynamic-selection.html [ Skip ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End features not supported in WebKit1
@@ -2960,3 +2967,4 @@ imported/w3c/web-platform-tests/content-security-policy/reporting-api/reporting-
 
 # webkit.org/b/279712 Clipboard API not supported on WK1
 imported/w3c/web-platform-tests/clipboard-apis/clipboard-item.https.html [ Skip ]
+

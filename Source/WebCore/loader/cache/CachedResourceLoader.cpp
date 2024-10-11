@@ -72,7 +72,6 @@
 #include "RenderElement.h"
 #include "ResourceLoadInfo.h"
 #include "ResourceTiming.h"
-#include "RuntimeApplicationChecks.h"
 #include "SVGElementTypeHelpers.h"
 #include "SVGImage.h"
 #include "ScriptController.h"
@@ -85,6 +84,7 @@
 #include "UserContentController.h"
 #include "UserStyleSheet.h"
 #include <pal/SessionID.h>
+#include <wtf/RuntimeApplicationChecks.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/MakeString.h>
 #include <wtf/text/WTFString.h>
@@ -1174,7 +1174,7 @@ ResourceErrorOr<CachedResourceHandle<CachedResource>> CachedResourceLoader::requ
             && !m_documentLoader->advancedPrivacyProtections().contains(AdvancedPrivacyProtections::HTTPSOnlyExplicitlyBypassedForDomain)
             && !frame->loader().isHTTPFallbackInProgress()
             && !(committedDocumentURL.protocolIs("http"_s) && request.resourceRequest().isSameSite());
-        if (!madeHTTPS && !request.resourceRequest().url().protocolIs("https"_s) && type == CachedResource::Type::MainResource && isHTTPSOnlyActive)
+        if (!madeHTTPS && !LegacySchemeRegistry::shouldTreatURLSchemeAsSecure(request.resourceRequest().url().protocol()) && type == CachedResource::Type::MainResource && isHTTPSOnlyActive)
             return makeUnexpected(protectedDocumentLoader()->protectedFrameLoader()->client().httpNavigationWithHTTPSOnlyError(request.resourceRequest()));
 
         if (madeHTTPS

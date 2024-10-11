@@ -598,6 +598,11 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     Modules/system-preview/ARKitBadgeSystemImage.h
 
+    Modules/url-pattern/URLPattern.h
+    Modules/url-pattern/URLPatternInit.h
+    Modules/url-pattern/URLPatternOptions.h
+    Modules/url-pattern/URLPatternResult.h
+
     Modules/web-locks/WebLock.h
     Modules/web-locks/WebLockIdentifier.h
     Modules/web-locks/WebLockManagerSnapshot.h
@@ -719,6 +724,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     animation/ScrollAxis.h
     animation/ScrollTimeline.h
     animation/ScrollTimelineOptions.h
+    animation/TimelineRange.h
     animation/TimelineScope.h
     animation/ViewTimeline.h
     animation/ViewTimelineOptions.h
@@ -1650,6 +1656,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/UserContentProvider.h
     page/UserContentTypes.h
     page/UserContentURLPattern.h
+    page/UserGestureTokenIdentifier.h
     page/UserInterfaceDirectionPolicy.h
     page/UserMediaRequestIdentifier.h
     page/UserMessageHandler.h
@@ -1817,7 +1824,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/ReferrerPolicy.h
     platform/RegistrableDomain.h
     platform/RemoteCommandListener.h
-    platform/RuntimeApplicationChecks.h
     platform/ScreenOrientationManager.h
     platform/ScreenProperties.h
     platform/ScriptExecutionContextIdentifier.h
@@ -2540,6 +2546,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     rendering/style/TextDecorationThickness.h
     rendering/style/TextSizeAdjustment.h
     rendering/style/TextUnderlineOffset.h
+    rendering/style/ViewTransitionName.h
     rendering/style/WillChangeData.h
 
     rendering/svg/legacy/LegacyRenderSVGModelObject.h

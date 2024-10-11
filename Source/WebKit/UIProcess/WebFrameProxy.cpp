@@ -40,6 +40,7 @@
 #include "ProvisionalFrameProxy.h"
 #include "ProvisionalPageProxy.h"
 #include "RemotePageProxy.h"
+#include "WebBackForwardListFrameItem.h"
 #include "WebFramePolicyListenerProxy.h"
 #include "WebNavigationState.h"
 #include "WebPageMessages.h"
@@ -506,6 +507,7 @@ FrameTreeCreationParameters WebFrameProxy::frameTreeCreationParameters() const
 {
     return {
         m_frameID,
+        m_opener ? std::optional(m_opener->frameID()) : std::nullopt,
         m_frameName,
         WTF::map(m_childFrames, [] (auto& frame) {
             return frame->frameTreeCreationParameters();
@@ -663,6 +665,11 @@ WebFrameProxy* WebFrameProxy::previousSibling() const
     return (--it)->ptr();
 }
 
+void WebFrameProxy::updateOpener(WebCore::FrameIdentifier newOpener)
+{
+    m_opener = WebFrameProxy::webFrame(newOpener);
+}
+
 WebFrameProxy& WebFrameProxy::rootFrame()
 {
     Ref rootFrame = *this;
@@ -674,6 +681,16 @@ WebFrameProxy& WebFrameProxy::rootFrame()
 bool WebFrameProxy::isMainFrame() const
 {
     return m_frameLoadState.isMainFrame() == IsMainFrame::Yes;
+}
+
+void WebFrameProxy::setPendingChildBackForwardItem(WebBackForwardListFrameItem* pendingChildBackForwardItem)
+{
+    m_pendingChildBackForwardItem = pendingChildBackForwardItem;
+}
+
+WebBackForwardListFrameItem* WebFrameProxy::takePendingChildBackForwardItem()
+{
+    return std::exchange(m_pendingChildBackForwardItem, nullptr).get();
 }
 
 } // namespace WebKit

@@ -326,7 +326,7 @@ void UIDelegate::UIClient::mouseDidMoveOverElement(WebPageProxy& page, const Web
 }
 #endif
 
-void UIDelegate::UIClient::createNewPage(WebKit::WebPageProxy&, Ref<API::PageConfiguration>&& configuration, WebCore::WindowFeatures&& windowFeatures, Ref<API::NavigationAction>&& navigationAction, CompletionHandler<void(RefPtr<WebPageProxy>&&)>&& completionHandler)
+void UIDelegate::UIClient::createNewPage(WebKit::WebPageProxy&, Ref<API::PageConfiguration>&& configuration, Ref<API::NavigationAction>&& navigationAction, CompletionHandler<void(RefPtr<WebPageProxy>&&)>&& completionHandler)
 {
     if (!m_uiDelegate)
         return completionHandler(nullptr);
@@ -334,7 +334,8 @@ void UIDelegate::UIClient::createNewPage(WebKit::WebPageProxy&, Ref<API::PageCon
     auto delegate = m_uiDelegate->m_delegate.get();
     ASSERT(delegate);
 
-    auto apiWindowFeatures = API::WindowFeatures::create(windowFeatures);
+    ASSERT(configuration->windowFeatures());
+    auto apiWindowFeatures = API::WindowFeatures::create(*configuration->windowFeatures());
     auto openerInfo = configuration->openerInfo();
 
     if (m_uiDelegate->m_delegateMethods.webViewCreateWebViewWithConfigurationForNavigationActionWindowFeaturesAsync) {
@@ -877,8 +878,9 @@ bool UIDelegate::UIClient::runOpenPanel(WebPageProxy& page, WebFrameProxy* webFr
         RetainPtr<NSFileCoordinator> uploadFileCoordinator = adoptNS([[NSFileCoordinator alloc] init]);
         RetainPtr<NSFileManager> uploadFileManager = adoptNS([[NSFileManager alloc] init]);
         for (NSURL *url in URLs) {
-            auto [maybeMovedURL, temporaryURL] = [WKFileUploadPanel _copyToNewTemporaryDirectory:url fileCoordinator:uploadFileCoordinator.get() fileManager:uploadFileManager.get()];
-            filenames.append(maybeMovedURL.get().path);
+            auto [operationResult, maybeMovedURL, temporaryURL] = [WKFileUploadPanel _moveToNewTemporaryDirectory:url fileCoordinator:uploadFileCoordinator.get() fileManager:uploadFileManager.get() asCopy:YES];
+            if (operationResult == WebKit::MovedSuccessfully::Yes)
+                filenames.append(maybeMovedURL.get().path);
         }
 #else
         for (NSURL *url in URLs)
@@ -1386,6 +1388,44 @@ void UIDelegate::UIClient::decidePolicyForUserMediaPermissionRequest(WebPageProx
     });
     [delegate _webView:m_uiDelegate->m_webView.get().get() requestUserMediaAuthorizationForDevices:devices url:requestFrameURL mainFrameURL:mainFrameURL decisionHandler:decisionHandler.get()];
 #endif
+}
+
+void UIDelegate::UIClient::decidePolicyForScreenCaptureUnmuting(WebPageProxy& page, WebFrameProxy& frame, API::SecurityOrigin& userMediaOrigin, API::SecurityOrigin& topLevelOrigin, CompletionHandler<void(bool isAllowed)>&& completionHandler)
+{
+    if (!m_uiDelegate) {
+        completionHandler(false);
+        return;
+    }
+
+    auto delegate = (id<WKUIDelegatePrivate>)m_uiDelegate->m_delegate.get();
+    if (!delegate) {
+        completionHandler(false);
+        return;
+    }
+
+    bool respondsToRequestScreenCaptureUnmute = [delegate respondsToSelector:@selector(_webView:decidePolicyForScreenCaptureUnmutingForOrigin:initiatedByFrame:decisionHandler:)];
+
+    if (!respondsToRequestScreenCaptureUnmute) {
+        alertForPermission(page, MediaPermissionReason::ScreenCapture, topLevelOrigin.securityOrigin(), WTFMove(completionHandler));
+        return;
+    }
+
+    auto checker = CompletionHandlerCallChecker::create(delegate, @selector(_webView:decidePolicyForScreenCaptureUnmutingForOrigin:initiatedByFrame:decisionHandler:));
+    auto decisionHandler = makeBlockPtr([completionHandler = WTFMove(completionHandler), checker = WTFMove(checker)] (BOOL isAllowed) mutable {
+        if (checker->completionHandlerHasBeenCalled())
+            return;
+        checker->didCallCompletionHandler();
+
+        completionHandler(isAllowed);
+    });
+
+    std::optional<WebCore::FrameIdentifier> mainFrameID;
+    if (auto* mainFrame = frame.page() ? frame.page()->mainFrame() : nullptr)
+        mainFrameID = mainFrame->frameID();
+    FrameInfoData frameInfo { frame.isMainFrame(), FrameType::Local, { }, userMediaOrigin.securityOrigin(), { }, frame.frameID(), mainFrameID, frame.process().processID(), frame.isFocused() };
+    RetainPtr<WKFrameInfo> frameInfoWrapper = wrapper(API::FrameInfo::create(WTFMove(frameInfo), frame.page()));
+
+    [delegate _webView:m_uiDelegate->m_webView.get().get() decidePolicyForScreenCaptureUnmutingForOrigin:wrapper(topLevelOrigin) initiatedByFrame:frameInfoWrapper.get() decisionHandler:decisionHandler.get()];
 }
 
 void UIDelegate::UIClient::checkUserMediaPermissionForOrigin(WebPageProxy& page, WebFrameProxy& frame, API::SecurityOrigin& userMediaOrigin, API::SecurityOrigin& topLevelOrigin, UserMediaPermissionCheckProxy& request)

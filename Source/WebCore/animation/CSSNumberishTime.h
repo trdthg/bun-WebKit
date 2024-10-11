@@ -38,6 +38,7 @@ public:
     CSSNumberishTime(const Seconds&);
     CSSNumberishTime(const CSSNumberish&);
 
+    static CSSNumberishTime fromMilliseconds(double);
     static CSSNumberishTime fromPercentage(double);
 
     WEBCORE_EXPORT std::optional<Seconds> time() const;
@@ -46,7 +47,12 @@ public:
     bool isValid() const;
     bool isInfinity() const;
     bool isZero() const;
+
+    CSSNumberishTime matchingZero() const;
+
     bool approximatelyEqualTo(const CSSNumberishTime&) const;
+    bool approximatelyLessThan(const CSSNumberishTime&) const;
+    bool approximatelyGreaterThan(const CSSNumberishTime&) const;
 
     CSSNumberishTime operator+(const CSSNumberishTime&) const;
     CSSNumberishTime operator-(const CSSNumberishTime&) const;

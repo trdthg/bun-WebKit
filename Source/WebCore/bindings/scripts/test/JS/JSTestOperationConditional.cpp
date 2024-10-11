@@ -194,7 +194,7 @@ static inline JSC::EncodedJSValue jsTestOperationConditionalPrototypeFunction_no
     auto throwScope = DECLARE_THROW_SCOPE(vm);
     UNUSED_PARAM(throwScope);
     UNUSED_PARAM(callFrame);
-    auto& impl = castedThis->wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = castedThis->wrapped();
     RELEASE_AND_RETURN(throwScope, JSValue::encode(toJS<IDLUndefined>(*lexicalGlobalObject, throwScope, [&]() -> decltype(auto) { return impl.nonConditionalOperation(); })));
 }
 
@@ -212,7 +212,7 @@ static inline JSC::EncodedJSValue jsTestOperationConditionalPrototypeFunction_co
     auto throwScope = DECLARE_THROW_SCOPE(vm);
     UNUSED_PARAM(throwScope);
     UNUSED_PARAM(callFrame);
-    auto& impl = castedThis->wrapped();
+    SUPPRESS_UNCOUNTED_LOCAL auto& impl = castedThis->wrapped();
     RELEASE_AND_RETURN(throwScope, JSValue::encode(toJS<IDLUndefined>(*lexicalGlobalObject, throwScope, [&]() -> decltype(auto) { return impl.conditionalOperation(); })));
 }
 
@@ -237,8 +237,8 @@ void JSTestOperationConditional::analyzeHeap(JSCell* cell, HeapAnalyzer& analyze
 {
     auto* thisObject = jsCast<JSTestOperationConditional*>(cell);
     analyzer.setWrappedObjectForCell(cell, &thisObject->wrapped());
-    if (thisObject->scriptExecutionContext())
-        analyzer.setLabelForCell(cell, makeString("url "_s, thisObject->scriptExecutionContext()->url().string()));
+    if (RefPtr context = thisObject->scriptExecutionContext())
+        analyzer.setLabelForCell(cell, makeString("url "_s, context->url().string()));
     Base::analyzeHeap(cell, analyzer);
 }
 

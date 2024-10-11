@@ -211,6 +211,7 @@ struct AttributedString;
 struct CharacterRange;
 struct SimpleRange;
 struct TextRecognitionResult;
+struct WindowFeatures;
 
 using PlatformDisplayID = uint32_t;
 using SharedStringHash = uint32_t;
@@ -471,6 +472,8 @@ public:
     CheckedRef<ProgressTracker> checkedProgress();
     CheckedRef<const ProgressTracker> checkedProgress() const;
 
+    WEBCORE_EXPORT void applyWindowFeatures(const WindowFeatures&);
+
     void progressEstimateChanged(LocalFrame&) const;
     void progressFinished(LocalFrame&) const;
     BackForwardController& backForward() { return m_backForwardController.get(); }
@@ -672,7 +675,7 @@ public:
 
 #if ENABLE(APPLE_PAY)
     PaymentCoordinator& paymentCoordinator() const { return *m_paymentCoordinator; }
-    WEBCORE_EXPORT void setPaymentCoordinator(std::unique_ptr<PaymentCoordinator>&&);
+    WEBCORE_EXPORT void setPaymentCoordinator(Ref<PaymentCoordinator>&&);
 #endif
 
 #if ENABLE(APPLE_PAY_AMS_UI)
@@ -1433,7 +1436,7 @@ private:
     UniqueRef<PageConsoleClient> m_consoleClient;
 
 #if ENABLE(REMOTE_INSPECTOR)
-    UniqueRef<PageDebuggable> m_inspectorDebuggable;
+    Ref<PageDebuggable> m_inspectorDebuggable;
 #endif
 
     RefPtr<IDBClient::IDBConnectionToServer> m_idbConnectionToServer;
@@ -1532,7 +1535,7 @@ private:
     std::unique_ptr<PageOverlayController> m_pageOverlayController;
 
 #if ENABLE(APPLE_PAY)
-    std::unique_ptr<PaymentCoordinator> m_paymentCoordinator;
+    RefPtr<PaymentCoordinator> m_paymentCoordinator;
 #endif
 
 #if ENABLE(APPLE_PAY_AMS_UI)

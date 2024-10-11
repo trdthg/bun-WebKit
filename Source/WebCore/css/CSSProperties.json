@@ -1185,7 +1185,7 @@
                 "space-all"
             ],
             "codegen-properties": {
-                "settings-flag": "cssTextSpacingEnabled",
+                "settings-flag": "cssTextSpacingTrimEnabled",
                 "font-property": true,
                 "high-priority": true,
                 "sink-priority": true,
@@ -1349,8 +1349,8 @@
                 "inter-character"
             ],
             "codegen-properties": {
-                "top-priority": true,
-                "comment": "This is a top priority property to ensure that its value can be checked when determining a smart default font size', (<https://trac.webkit.org/browser/trunk/Source/WebCore/ChangeLog?rev=172861>).",
+                "cascade-alias": "ruby-position",
+                "skip-builder": true,
                 "name-for-methods": "RubyPosition",
                 "parser-function": "consumeWebKitRubyPosition",
                 "parser-grammar-unused": "before | after | inter-character",
@@ -8656,10 +8656,10 @@
                 "flat",
                 "preserve-3d",
                 {
-                    "value": "optimized-3d",
-                    "status": "internal",
-                    "enable-if": "ENABLE_CSS_TRANSFORM_STYLE_OPTIMIZED_3D",
-                    "settings-flag": "transformStyleOptimized3DEnabled"
+                    "value": "separated",
+                    "status": "non-standard",
+                    "settings-flag": "cssTransformStyleSeparatedEnabled",
+                    "enable-if": "ENABLE_CSS_TRANSFORM_STYLE_SEPARATED"
                 }
             ],
             "codegen-properties": {
@@ -9339,9 +9339,7 @@
         "view-transition-name": {
             "codegen-properties": {
                 "converter": "ViewTransitionName",
-                "parser-function": "consumeViewTransitionName",
-                "parser-grammar-unused": "none | <custom-ident>",
-                "parser-grammar-unused-reason": "Needs support for applying restrictions to <custom-ident>. The <custom-ident> production used here excludes the keyword auto.",
+                "parser-grammar": "none | auto | <custom-ident>",
                 "settings-flag": "viewTransitionsEnabled"
             },
             "specification": {

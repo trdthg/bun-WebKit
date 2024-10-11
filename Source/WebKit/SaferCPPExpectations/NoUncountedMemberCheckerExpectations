@@ -1,9 +1,3 @@
 AutomationFrontendDispatchers.h
 UIProcess/Inspector/WebPageInspectorAgentBase.h
 WebProcess/ApplePay/WebPaymentCoordinator.h
-WebProcess/GPU/media/MediaPlayerPrivateRemote.h
-WebProcess/GPU/media/RemoteImageDecoderAVF.h
-WebProcess/GPU/media/RemoteMediaPlayerMIMETypeCache.h
-WebProcess/GPU/media/RemoteMediaResourceProxy.h
-WebProcess/GPU/webrtc/MediaRecorderProvider.h
-WebProcess/WebAuthentication/WebAuthenticatorCoordinator.h

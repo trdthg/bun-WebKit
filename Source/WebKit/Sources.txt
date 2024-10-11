@@ -133,7 +133,6 @@ NetworkProcess/Cookies/WebCookieManager.cpp
 
 NetworkProcess/Downloads/Download.cpp
 NetworkProcess/Downloads/DownloadManager.cpp
-NetworkProcess/Downloads/DownloadMap.cpp
 NetworkProcess/Downloads/DownloadMonitor.cpp
 NetworkProcess/Downloads/PendingDownload.cpp
 
@@ -239,6 +238,7 @@ Shared/SharedStringHashStore.cpp
 Shared/SharedStringHashTableReadOnly.cpp
 Shared/SharedStringHashTable.cpp
 Shared/UserData.cpp
+Shared/WebBackForwardListFrameItem.cpp
 Shared/WebBackForwardListItem.cpp
 Shared/WebCompiledContentRuleList.cpp
 Shared/WebCompiledContentRuleListData.cpp

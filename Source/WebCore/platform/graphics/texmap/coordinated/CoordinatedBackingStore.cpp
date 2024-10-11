@@ -21,8 +21,8 @@
 #include "CoordinatedBackingStore.h"
 
 #if USE(COORDINATED_GRAPHICS)
-
 #include "BitmapTexture.h"
+#include "CoordinatedTileBuffer.h"
 #include "GraphicsLayer.h"
 #include "TextureMapper.h"
 #include <wtf/SystemTracing.h>
@@ -74,7 +74,7 @@ void CoordinatedBackingStoreTile::swapBuffers(TextureMapper& textureMapper)
 #if USE(SKIA)
         if (update.buffer->isBackedByOpenGL()) {
             WTFBeginSignpost(this, CopyTextureGPUToGPU);
-            auto& buffer = static_cast<Nicosia::AcceleratedBuffer&>(*update.buffer);
+            auto& buffer = static_cast<CoordinatedAcceleratedTileBuffer&>(*update.buffer);
 
             // Fast path: whole tile content changed -- take ownership of the incoming texture, replacing the existing tile buffer (avoiding texture copies).
             if (update.sourceRect.size() == update.tileRect.size()) {
@@ -92,7 +92,7 @@ void CoordinatedBackingStoreTile::swapBuffers(TextureMapper& textureMapper)
 
         WTFBeginSignpost(this, CopyTextureCPUToGPU);
         ASSERT(!update.buffer->isBackedByOpenGL());
-        auto& buffer = static_cast<Nicosia::UnacceleratedBuffer&>(*update.buffer);
+        auto& buffer = static_cast<CoordinatedUnacceleratedTileBuffer&>(*update.buffer);
         m_texture->updateContents(buffer.data(), update.sourceRect, update.bufferOffset, buffer.stride(), buffer.pixelFormat());
         update.buffer = nullptr;
         WTFEndSignpost(this, CopyTextureCPUToGPU);
@@ -102,10 +102,8 @@ void CoordinatedBackingStoreTile::swapBuffers(TextureMapper& textureMapper)
     WTFEndSignpost(this, CoordinatedSwapBuffers);
 }
 
-void CoordinatedBackingStore::createTile(uint32_t id, float scale)
+void CoordinatedBackingStore::createTile(uint32_t id)
 {
-    // FIXME: scale set shouldn't be done in createTile, it sould be moved to resize().
-    m_scale = scale;
     m_tiles.add(id, CoordinatedBackingStoreTile(m_scale));
 }
 
@@ -115,16 +113,17 @@ void CoordinatedBackingStore::removeTile(uint32_t id)
     m_tiles.remove(id);
 }
 
-void CoordinatedBackingStore::updateTile(uint32_t id, const IntRect& sourceRect, const IntRect& tileRect, RefPtr<Nicosia::Buffer>&& buffer, const IntPoint& offset)
+void CoordinatedBackingStore::updateTile(uint32_t id, const IntRect& sourceRect, const IntRect& tileRect, RefPtr<CoordinatedTileBuffer>&& buffer, const IntPoint& offset)
 {
     auto it = m_tiles.find(id);
     ASSERT(it != m_tiles.end());
     it->value.addUpdate({ WTFMove(buffer), sourceRect, tileRect, offset });
 }
 
-void CoordinatedBackingStore::resize(const FloatSize& size)
+void CoordinatedBackingStore::resize(const FloatSize& size, float scale)
 {
     m_size = size;
+    m_scale = scale;
 }
 
 void CoordinatedBackingStore::paintTilesToTextureMapper(Vector<TextureMapperTile*>& tiles, TextureMapper& textureMapper, const TransformationMatrix& transform, float opacity, const FloatRect& rect)

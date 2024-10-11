@@ -187,7 +187,7 @@ public:
     // should not be shown to the user until the ChromeClient of the newly
     // created Page has its show method called.
     // The ChromeClient should not load the request.
-    virtual Page* createWindow(LocalFrame&, const WindowFeatures&, const NavigationAction&) = 0;
+    virtual RefPtr<Page> createWindow(LocalFrame&, const WindowFeatures&, const NavigationAction&) = 0;
     virtual void show() = 0;
 
     virtual bool canRunModal() const = 0;
@@ -354,7 +354,7 @@ public:
 #endif
 
 #if ENABLE(DATE_AND_TIME_INPUT_TYPES)
-    virtual std::unique_ptr<DateTimeChooser> createDateTimeChooser(DateTimeChooserClient&) = 0;
+    virtual RefPtr<DateTimeChooser> createDateTimeChooser(DateTimeChooserClient&) = 0;
 #endif
 
     virtual void setTextIndicator(const TextIndicatorData&) const = 0;

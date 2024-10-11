@@ -29,7 +29,6 @@
 #include "IntSize.h"
 #include "NicosiaAnimatedBackingStoreClient.h"
 #include "NicosiaAnimation.h"
-#include "NicosiaBuffer.h"
 #include "NicosiaCompositionLayer.h"
 #include "NicosiaPlatformLayer.h"
 #include "TransformationMatrix.h"
@@ -48,13 +47,14 @@ class SkiaThreadedPaintingPool;
 
 namespace Nicosia {
 class Animations;
-class ImageBackingStore;
 class PaintingEngine;
 }
 
 namespace WebCore {
+class CoordinatedBackingStoreProxy;
 class CoordinatedGraphicsLayer;
 class CoordinatedImageBackingStore;
+class CoordinatedTileBuffer;
 class TextureMapperPlatformLayerProxy;
 
 class CoordinatedGraphicsLayerClient {
@@ -149,6 +149,7 @@ public:
     void computePixelAlignment(FloatPoint& position, FloatSize&, FloatPoint3D& anchorPoint, FloatSize& alignmentOffset);
 
     IntRect transformedVisibleRect();
+    IntRect transformedVisibleRectIncludingFuture();
 
     void invalidateCoordinator();
     void setCoordinatorIncludingSubLayersIfNeeded(CoordinatedGraphicsLayerClient*);
@@ -186,6 +187,7 @@ public:
 
     Vector<std::pair<String, double>> acceleratedAnimationsForTesting(const Settings&) const final;
 
+    Ref<CoordinatedTileBuffer> paintTile(const IntRect&);
 #if USE(SKIA)
     void paintIntoGraphicsContext(GraphicsContext&, const IntRect&) const;
 #endif
@@ -214,8 +216,6 @@ private:
     bool checkPendingStateChanges();
     bool checkContentLayerUpdated();
 
-    Ref<Nicosia::Buffer> paintTile(const IntRect& dirtyRect);
-
     void notifyFlushRequired();
 
     bool shouldHaveBackingStore() const;
@@ -232,7 +232,9 @@ private:
 
     Nicosia::PlatformLayer::LayerID m_id;
     GraphicsLayerTransform m_layerTransform;
+    GraphicsLayerTransform m_layerFutureTransform;
     TransformationMatrix m_cachedInverseTransform;
+    TransformationMatrix m_cachedFutureInverseTransform;
     TransformationMatrix m_cachedCombinedTransform;
     FloatSize m_pixelAlignmentOffset;
     FloatSize m_adjustedSize;
@@ -269,9 +271,10 @@ private:
         Nicosia::CompositionLayer::LayerState::DebugBorder debugBorder;
         bool performLayerSync { false };
 
-        RefPtr<Nicosia::BackingStore> backingStore;
         RefPtr<Nicosia::AnimatedBackingStoreClient> animatedBackingStoreClient;
     } m_nicosia;
+
+    std::unique_ptr<CoordinatedBackingStoreProxy> m_backingStore;
 
     RefPtr<NativeImage> m_pendingContentsImage;
     struct {

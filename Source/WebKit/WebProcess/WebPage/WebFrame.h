@@ -86,7 +86,7 @@ class WebFrame : public API::ObjectImpl<API::Object::Type::BundleFrame>, public 
 public:
     static Ref<WebFrame> create(WebPage& page, WebCore::FrameIdentifier frameID) { return adoptRef(*new WebFrame(page, frameID)); }
     static Ref<WebFrame> createSubframe(WebPage&, WebFrame& parent, const AtomString& frameName, WebCore::HTMLFrameOwnerElement&);
-    static Ref<WebFrame> createRemoteSubframe(WebPage&, WebFrame& parent, WebCore::FrameIdentifier, const String& frameName);
+    static Ref<WebFrame> createRemoteSubframe(WebPage&, WebFrame& parent, WebCore::FrameIdentifier, const String& frameName, std::optional<WebCore::FrameIdentifier> openerFrameID);
     ~WebFrame();
 
     void initWithCoreMainFrame(WebPage&, WebCore::Frame&);
@@ -123,7 +123,7 @@ public:
     void didFinishLoadInAnotherProcess();
     void removeFromTree();
 
-    void startDownload(const WebCore::ResourceRequest&, const String& suggestedName = { });
+    void startDownload(const WebCore::ResourceRequest&, const String& suggestedName = { }, WebCore::FromDownloadAttribute = WebCore::FromDownloadAttribute::No);
     void convertMainResourceLoadToDownload(WebCore::DocumentLoader*, const WebCore::ResourceRequest&, const WebCore::ResourceResponse&);
 
     void addConsoleMessage(MessageSource, MessageLevel, const String&, uint64_t requestID = 0);
