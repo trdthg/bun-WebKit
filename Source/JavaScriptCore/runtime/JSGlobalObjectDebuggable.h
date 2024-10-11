@@ -63,8 +63,8 @@ public:
 
     void globalObjectDestroyed();
 
-private:
     JSGlobalObjectDebuggable(JSGlobalObject&);
+private:
 
     void callOnGlobalObjectRunLoopAndWait(Function<void()>&&) const;
 
