@@ -28,6 +28,7 @@
 #include "JSCInlines.h"
 #include "ParseInt.h"
 #include "StackFrame.h"
+#include "VM.h"
 #include <wtf/text/MakeString.h>
 
 namespace JSC {
@@ -107,6 +108,15 @@ String appendSourceToErrorMessage(CodeBlock* codeBlock, BytecodeIndex bytecodeIn
     return appender(message, codeBlock->source().provider()->getRange(start, stop), type, ErrorInstance::FoundApproximateSource);
 }
 
+void ErrorInstance::setStackFrames(VM& vm, WTF::Vector<StackFrame>&& stackFrames)
+{
+    std::unique_ptr<Vector<StackFrame>> stackTrace = makeUnique<Vector<StackFrame>>(WTFMove(stackFrames));
+
+    Locker locker { cellLock() };
+    m_stackTrace = WTFMove(stackTrace);
+    vm.writeBarrier(this);
+}
+
 void ErrorInstance::captureStackTrace(VM& vm, JSGlobalObject* globalObject, size_t framesToSkip, bool append)
 {
     {
@@ -127,7 +137,7 @@ void ErrorInstance::captureStackTrace(VM& vm, JSGlobalObject* globalObject, size
             remaining = std::min(remaining, m_stackTrace->size());
             if (remaining > 0) {
                 ASSERT(m_stackTrace->size() >= remaining);
-                stackTrace->append(std::span { m_stackTrace->data(), remaining } );
+                stackTrace->append(std::span { m_stackTrace->data(), remaining });
             }
         }
 
@@ -310,14 +320,8 @@ void ErrorInstance::computeErrorInfo(VM& vm, bool allocationAllowed)
 
     if (m_stackTrace && !m_stackTrace->isEmpty()) {
         auto& fn = vm.onComputeErrorInfo();
-        if (fn && allocationAllowed) {
-            // This function may call `globalObject` or potentially even execute arbitrary JS code.
-            // We cannot gurantee the lifetime of this stack trace to continue to be valid.
-            // We have to move it out of the ErrorInstance.
-            WTF::Vector<StackFrame> stackTrace = WTFMove(*m_stackTrace.get());
-            m_stackString = fn(vm, stackTrace, m_lineColumn.line, m_lineColumn.column, m_sourceURL, allocationAllowed ? this : nullptr);
-        } else if (fn && !allocationAllowed) {
-            m_stackString = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL, nullptr);
+        if (fn) {
+            m_stackString = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL);
         } else {
             getLineColumnAndSource(vm, m_stackTrace.get(), m_lineColumn, m_sourceURL);
             m_stackString = Interpreter::stackTraceAsString(vm, *m_stackTrace.get());
@@ -331,6 +335,28 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
     if (m_errorInfoMaterialized)
         return false;
 
+#if USE(BUN_JSC_ADDITIONS)
+
+    auto& fn = vm.onComputeErrorInfoJSValue();
+    if (fn && m_stackTrace && !m_stackTrace->isEmpty()) {
+        DeferGCForAWhile deferGC(vm);
+
+        JSValue stack = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL, this);
+        m_stackTrace = nullptr;
+
+        auto attributes = static_cast<unsigned>(PropertyAttribute::DontEnum);
+
+        putDirect(vm, vm.propertyNames->line, jsNumber(m_lineColumn.line), attributes);
+        putDirect(vm, vm.propertyNames->column, jsNumber(m_lineColumn.column), attributes);
+        if (!m_sourceURL.isEmpty())
+            putDirect(vm, vm.propertyNames->sourceURL, jsString(vm, WTFMove(m_sourceURL)), attributes);
+
+        putDirect(vm, vm.propertyNames->stack, stack, attributes);
+        m_errorInfoMaterialized = true;
+        return true;
+    }
+
+#endif
     computeErrorInfo(vm, true);
 
     if (!m_stackString.isNull()) {

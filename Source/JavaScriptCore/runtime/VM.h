@@ -161,6 +161,11 @@ class Waiter;
 
 constexpr bool validateDFGDoesGC = ENABLE_DFG_DOES_GC_VALIDATION;
 
+#if USE(BUN_JSC_ADDITIONS)
+using ErrorInfoFunction = WTF::Function<String(VM&, Vector<StackFrame>& stackTrace, unsigned& line, unsigned& column, String& sourceURL)>;
+using ErrorInfoFunctionJSValue = WTF::Function<JSValue(VM&, Vector<StackFrame>& stackTrace, unsigned& line, unsigned& column, String& sourceURL, JSC::JSObject*)>;
+#endif
+
 #if ENABLE(FTL_JIT)
 namespace FTL {
 class Thunks;
@@ -934,10 +939,13 @@ public:
 
     WTF::Function<void(VM&, SourceProvider*, LineColumn&)>& computeLineColumnWithSourcemap() { return m_computeLineColumnWithSourcemap; }
     void setComputeLineColumnWithSourcemap(WTF::Function<void(VM&, SourceProvider*, LineColumn&)>&& func) { m_computeLineColumnWithSourcemap = WTFMove(func); }
-    
-    WTF::Function<String(VM&, Vector<StackFrame>& stackTrace, unsigned &line, unsigned &column, String& sourceURL, JSC::JSObject*)>& onComputeErrorInfo() { return m_onComputeErrorInfo; }
-    void setOnComputeErrorInfo(WTF::Function<String(VM&, Vector<StackFrame>& stackTrace, unsigned &line, unsigned &column, String& sourceURL, JSC::JSObject*)>&& func) { m_onComputeErrorInfo = WTFMove(func); }
-    
+
+#if USE(BUN_JSC_ADDITIONS)
+    const ErrorInfoFunction& onComputeErrorInfo() const { return m_onComputeErrorInfo; }
+    const ErrorInfoFunctionJSValue& onComputeErrorInfoJSValue() const { return m_onComputeErrorInfoJSValue; }
+    void setOnComputeErrorInfo(ErrorInfoFunction&& func) { m_onComputeErrorInfo = WTFMove(func); }
+    void setOnComputeErrorInfoJSValue(ErrorInfoFunctionJSValue&& func) { m_onComputeErrorInfoJSValue = WTFMove(func); }
+#endif
     void finalizeSynchronousJSExecution()
     {
         ASSERT(currentThreadIsHoldingAPILock());
@@ -1135,8 +1143,11 @@ private:
     Vector<Strong<JSPromise>> m_aboutToBeNotifiedRejectedPromises;
 
     WTF::Function<void(VM&)> m_onEachMicrotaskTick;
-    WTF::Function<String(VM&, Vector<StackFrame>& stackTrace, unsigned &line, unsigned &column, String& sourceURL, JSC::JSObject*)> m_onComputeErrorInfo;
+#if USE(BUN_JSC_ADDITIONS)
+    ErrorInfoFunction m_onComputeErrorInfo;
+    ErrorInfoFunctionJSValue m_onComputeErrorInfoJSValue;
     WTF::Function<void(VM&, SourceProvider*, LineColumn&)> m_computeLineColumnWithSourcemap;
+#endif
     uintptr_t m_currentWeakRefVersion { 0 };
 
     bool m_hasSideData { false };
