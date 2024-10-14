@@ -47,6 +47,7 @@ class JSGlobalObject;
 
 namespace Inspector {
 
+class InjectedScriptHost;
 class BackendDispatcher;
 class FrontendChannel;
 class InjectedScriptManager;
@@ -69,6 +70,9 @@ class JSGlobalObjectInspectorController final
     WTF_MAKE_TZONE_ALLOCATED(JSGlobalObjectInspectorController);
 public:
     JSGlobalObjectInspectorController(JSC::JSGlobalObject&);
+#if USE(BUN_JSC_ADDITIONS)
+    JSGlobalObjectInspectorController(JSC::JSGlobalObject&, Ref<InjectedScriptHost>&&);
+#endif
     ~JSGlobalObjectInspectorController() final;
 
     void connectFrontend(FrontendChannel&, bool isAutomaticInspection, bool immediatelyPause);

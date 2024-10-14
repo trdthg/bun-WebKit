@@ -45,6 +45,7 @@ WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 #include <wtf/text/StringHasherInlines.h>
 #include <wtf/text/UTF8ConversionError.h>
 #include <wtf/unicode/UTF8Conversion.h>
+#include <wtf/ForkExtras.h>
 
 #if USE(CF)
 typedef const struct __CFString * CFStringRef;
@@ -178,6 +179,7 @@ protected:
 // Right now we use a mix of both, which makes code more confusing and has no benefit.
 
 DECLARE_COMPACT_ALLOCATOR_WITH_HEAP_IDENTIFIER(StringImpl);
+
 class StringImpl : private StringImplShape {
     WTF_MAKE_NONCOPYABLE(StringImpl);
     WTF_MAKE_FAST_COMPACT_ALLOCATED_WITH_HEAP_IDENTIFIER(StringImpl);
@@ -406,7 +408,8 @@ public:
     WTF_EXPORT_PRIVATE static StaticStringImpl s_emptyAtomString;
     ALWAYS_INLINE static StringImpl* empty() { return reinterpret_cast<StringImpl*>(&s_emptyAtomString); }
 
-    // FIXME: Do these functions really belong in StringImpl?
+
+    template<typename SourceCharacterType> static void iterCharacters(jsstring_iterator* iter, unsigned start, const SourceCharacterType* source, unsigned numCharacters);
     template<typename CharacterType>
     ALWAYS_INLINE static void copyCharacters(CharacterType* destination, std::span<const CharacterType> source)
     {
@@ -1160,6 +1163,18 @@ inline void StringImpl::deref()
         return;
     }
     m_refCount = tempRefCount;
+}
+
+template<typename SourceCharacterType>
+inline void StringImpl::iterCharacters(jsstring_iterator* iter, unsigned start, const SourceCharacterType* source, unsigned numCharacters)
+{
+    static_assert(std::is_same_v<SourceCharacterType, LChar> || std::is_same_v<SourceCharacterType, UChar>);
+
+    if constexpr (std::is_same_v<SourceCharacterType, LChar>) {
+       iter->write8(iter, (const void*) source, numCharacters, start);
+    } else {
+       iter->write16(iter, (const void*) source, numCharacters, start);
+    }
 }
 
 inline UChar StringImpl::at(unsigned i) const

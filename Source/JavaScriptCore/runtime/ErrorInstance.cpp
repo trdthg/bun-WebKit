@@ -28,6 +28,7 @@
 #include "JSCInlines.h"
 #include "ParseInt.h"
 #include "StackFrame.h"
+#include "VM.h"
 #include <wtf/text/MakeString.h>
 
 namespace JSC {
@@ -86,7 +87,7 @@ String appendSourceToErrorMessage(CodeBlock* codeBlock, BytecodeIndex bytecodeIn
     StringView sourceString = codeBlock->source().provider()->source();
     if (!expressionStop || expressionStart > static_cast<int>(sourceString.length()))
         return message;
-    
+
     if (expressionStart < expressionStop)
         return appender(message, codeBlock->source().provider()->getRange(expressionStart, expressionStop), type, ErrorInstance::FoundExactSource);
 
@@ -107,6 +108,44 @@ String appendSourceToErrorMessage(CodeBlock* codeBlock, BytecodeIndex bytecodeIn
     return appender(message, codeBlock->source().provider()->getRange(start, stop), type, ErrorInstance::FoundApproximateSource);
 }
 
+void ErrorInstance::setStackFrames(VM& vm, WTF::Vector<StackFrame>&& stackFrames)
+{
+    std::unique_ptr<Vector<StackFrame>> stackTrace = makeUnique<Vector<StackFrame>>(WTFMove(stackFrames));
+
+    Locker locker { cellLock() };
+    m_stackTrace = WTFMove(stackTrace);
+    vm.writeBarrier(this);
+}
+
+void ErrorInstance::captureStackTrace(VM& vm, JSGlobalObject* globalObject, size_t framesToSkip, bool append)
+{
+    {
+        Locker locker { cellLock() };
+
+        size_t limit = globalObject->stackTraceLimit().value();
+        std::unique_ptr<Vector<StackFrame>> stackTrace = makeUnique<Vector<StackFrame>>();
+        vm.interpreter.getStackTrace(this, *stackTrace, framesToSkip, limit);
+
+        if (!m_stackTrace || !append) {
+            m_stackTrace = WTFMove(stackTrace);
+            vm.writeBarrier(this);
+            return;
+        }
+
+        if (m_stackTrace) {
+            size_t remaining = limit - std::min(stackTrace->size(), limit);
+            remaining = std::min(remaining, m_stackTrace->size());
+            if (remaining > 0) {
+                ASSERT(m_stackTrace->size() >= remaining);
+                stackTrace->append(std::span { m_stackTrace->data(), remaining });
+            }
+        }
+
+        m_stackTrace = WTFMove(stackTrace);
+    }
+    vm.writeBarrier(this);
+}
+
 void ErrorInstance::finishCreation(VM& vm, const String& message, JSValue cause, SourceAppender appender, RuntimeType type, bool useCurrentFrame)
 {
     Base::finishCreation(vm);
@@ -123,6 +162,7 @@ void ErrorInstance::finishCreation(VM& vm, const String& message, JSValue cause,
     vm.writeBarrier(this);
 
     String messageWithSource = message;
+
     if (m_stackTrace && !m_stackTrace->isEmpty() && hasSourceAppender()) {
         auto [codeBlock, bytecodeIndex] = getBytecodeIndex(vm, vm.topCallFrame);
         if (codeBlock) {
@@ -134,8 +174,9 @@ void ErrorInstance::finishCreation(VM& vm, const String& message, JSValue cause,
         }
     }
 
-    if (!messageWithSource.isNull())
+    if (!messageWithSource.isNull()) {
         putDirect(vm, vm.propertyNames->message, jsString(vm, WTFMove(messageWithSource)), static_cast<unsigned>(PropertyAttribute::DontEnum));
+    }
 
     if (!cause.isEmpty())
         putDirect(vm, vm.propertyNames->cause, cause, static_cast<unsigned>(PropertyAttribute::DontEnum));
@@ -185,10 +226,10 @@ String ErrorInstance::sanitizedMessageString(JSGlobalObject* globalObject)
     PropertySlot messageSlot(this, PropertySlot::InternalMethodType::VMInquiry, &vm);
     if (JSObject::getOwnPropertySlot(this, globalObject, messagePropertName, messageSlot) && messageSlot.isValue())
         messageValue = messageSlot.getValue(globalObject, messagePropertName);
-    RETURN_IF_EXCEPTION(scope, { });
+    RETURN_IF_EXCEPTION(scope, {});
 
     if (!messageValue || !messageValue.isPrimitive())
-        return { };
+        return {};
 
     RELEASE_AND_RETURN(scope, messageValue.toWTFString(globalObject));
 }
@@ -217,7 +258,7 @@ String ErrorInstance::sanitizedNameString(JSGlobalObject* globalObject)
         }
         currentObj = obj->getPrototypeDirect();
     }
-    RETURN_IF_EXCEPTION(scope, { });
+    RETURN_IF_EXCEPTION(scope, {});
 
     if (!nameValue || !nameValue.isPrimitive())
         return "Error"_s;
@@ -264,13 +305,13 @@ void ErrorInstance::finalizeUnconditionally(VM& vm, CollectionScope)
     // get caught in a trace.
     for (const auto& frame : *m_stackTrace.get()) {
         if (!frame.isMarked(vm)) {
-            computeErrorInfo(vm);
+            computeErrorInfo(vm, false);
             return;
         }
     }
 }
 
-void ErrorInstance::computeErrorInfo(VM& vm)
+void ErrorInstance::computeErrorInfo(VM& vm, bool allocationAllowed)
 {
     ASSERT(!m_errorInfoMaterialized);
     // Here we use DeferGCForAWhile instead of DeferGC since GC's Heap::runEndPhase can trigger this function. In
@@ -278,8 +319,13 @@ void ErrorInstance::computeErrorInfo(VM& vm)
     DeferGCForAWhile deferGC(vm);
 
     if (m_stackTrace && !m_stackTrace->isEmpty()) {
-        getLineColumnAndSource(vm, m_stackTrace.get(), m_lineColumn, m_sourceURL);
-        m_stackString = Interpreter::stackTraceAsString(vm, *m_stackTrace.get());
+        auto& fn = vm.onComputeErrorInfo();
+        if (fn) {
+            m_stackString = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL);
+        } else {
+            getLineColumnAndSource(vm, m_stackTrace.get(), m_lineColumn, m_sourceURL);
+            m_stackString = Interpreter::stackTraceAsString(vm, *m_stackTrace.get());
+        }
         m_stackTrace = nullptr;
     }
 }
@@ -289,7 +335,29 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
     if (m_errorInfoMaterialized)
         return false;
 
-    computeErrorInfo(vm);
+#if USE(BUN_JSC_ADDITIONS)
+
+    auto& fn = vm.onComputeErrorInfoJSValue();
+    if (fn && m_stackTrace && !m_stackTrace->isEmpty()) {
+        DeferGCForAWhile deferGC(vm);
+
+        JSValue stack = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL, this);
+        m_stackTrace = nullptr;
+
+        auto attributes = static_cast<unsigned>(PropertyAttribute::DontEnum);
+
+        putDirect(vm, vm.propertyNames->line, jsNumber(m_lineColumn.line), attributes);
+        putDirect(vm, vm.propertyNames->column, jsNumber(m_lineColumn.column), attributes);
+        if (!m_sourceURL.isEmpty())
+            putDirect(vm, vm.propertyNames->sourceURL, jsString(vm, WTFMove(m_sourceURL)), attributes);
+
+        putDirect(vm, vm.propertyNames->stack, stack, attributes);
+        m_errorInfoMaterialized = true;
+        return true;
+    }
+
+#endif
+    computeErrorInfo(vm, true);
 
     if (!m_stackString.isNull()) {
         auto attributes = static_cast<unsigned>(PropertyAttribute::DontEnum);

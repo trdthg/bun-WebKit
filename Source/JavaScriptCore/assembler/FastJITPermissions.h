@@ -79,7 +79,7 @@ static ALWAYS_INLINE void threadSelfRestrict()
         RELEASE_ASSERT_NOT_REACHED();
 }
 
-#elif USE(PTHREAD_JIT_PERMISSIONS_API)
+#elif CPU(ARM64)
 #include <pthread.h>
 
 template <MemoryRestriction>

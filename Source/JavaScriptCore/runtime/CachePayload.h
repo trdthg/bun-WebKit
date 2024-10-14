@@ -34,8 +34,10 @@ namespace JSC {
 
 class CachePayload {
 public:
+    using Destructor = WTF::Function<void(const void*)>;
     JS_EXPORT_PRIVATE static CachePayload makeMappedPayload(FileSystem::MappedFileData&&);
     JS_EXPORT_PRIVATE static CachePayload makeMallocPayload(MallocPtr<uint8_t, VMMalloc>&&, size_t);
+    JS_EXPORT_PRIVATE static CachePayload makePayloadWithDestructor(std::span<uint8_t>, Destructor&&);
     JS_EXPORT_PRIVATE static CachePayload makeEmptyPayload();
 
     JS_EXPORT_PRIVATE CachePayload(CachePayload&&);
@@ -45,9 +47,10 @@ public:
     JS_EXPORT_PRIVATE std::span<const uint8_t> span() const;
 
 private:
-    CachePayload(std::variant<FileSystem::MappedFileData, std::pair<MallocPtr<uint8_t, VMMalloc>, size_t>>&&);
+    CachePayload(std::variant<FileSystem::MappedFileData, std::pair<MallocPtr<uint8_t, VMMalloc>, size_t>, std::span<uint8_t>>&&, Destructor&& = {nullptr});
 
-    std::variant<FileSystem::MappedFileData, std::pair<MallocPtr<uint8_t, VMMalloc>, size_t>> m_data;
+    std::variant<FileSystem::MappedFileData, std::pair<MallocPtr<uint8_t, VMMalloc>, size_t>, std::span<uint8_t>> m_data;
+    Destructor m_destructor { nullptr };
 };
 
 } // namespace JSC

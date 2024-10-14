@@ -474,6 +474,16 @@ set(WTF_PUBLIC_HEADERS
     unicode/UTF8Conversion.h
 
     unicode/icu/ICUHelpers.h
+
+    ForkExtras.h
+    # unix/UnixFileDescriptor.h
+
+    # win/DbgHelperWin.h
+    # win/GDIObject.h
+    # win/PathWalker.h
+    # win/SoftLinking.h
+    # win/Win32Handle.h
+    # text/win/WCharStringExtras.h
 )
 
 set(WTF_SOURCES

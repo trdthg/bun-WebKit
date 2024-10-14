@@ -25,7 +25,9 @@
 
 #ifndef JSValueRef_h
 #define JSValueRef_h
-
+#ifndef __cplusplus
+#include <stddef.h>
+#endif
 #include <JavaScriptCore/JSBase.h>
 #include <JavaScriptCore/WebKitAvailability.h>
 
@@ -547,6 +549,7 @@ JS_EXPORT void JSValueProtect(JSC_NULL_UNSPECIFIED JSContextRef ctx, JSC_NULL_UN
  equal number of times before becoming eligible for garbage collection.
 */
 JS_EXPORT void JSValueUnprotect(JSC_NULL_UNSPECIFIED JSContextRef ctx, JSC_NULL_UNSPECIFIED JSValueRef value);
+
 
 #ifdef __cplusplus
 }

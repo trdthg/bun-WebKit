@@ -92,13 +92,15 @@ void AbstractModuleRecord::addStarExportEntry(const Identifier& moduleName)
 void AbstractModuleRecord::addImportEntry(const ImportEntry& entry)
 {
     bool isNewEntry = m_importEntries.add(entry.localName.impl(), entry).isNewEntry;
-    ASSERT_UNUSED(isNewEntry, isNewEntry); // This is guaranteed by the parser.
+    // This is guaranteed by the parser.
+    ASSERT_WITH_MESSAGE(isNewEntry, "Duplicate import entry name '%s'", entry.localName.impl()->utf8().data());
 }
 
 void AbstractModuleRecord::addExportEntry(const ExportEntry& entry)
 {
     bool isNewEntry = m_exportEntries.add(entry.exportName.impl(), entry).isNewEntry;
-    ASSERT_UNUSED(isNewEntry, isNewEntry); // This is guaranteed by the parser.
+    // This is guaranteed by the parser.
+    ASSERT_WITH_MESSAGE(isNewEntry, "Duplicate export entry name '%s'", entry.exportName.impl()->utf8().data());
 }
 
 auto AbstractModuleRecord::tryGetImportEntry(UniquedStringImpl* localName) -> std::optional<ImportEntry>
@@ -745,7 +747,7 @@ static void getExportedNames(JSGlobalObject* globalObject, AbstractModuleRecord*
     }
 }
 
-JSModuleNamespaceObject* AbstractModuleRecord::getModuleNamespace(JSGlobalObject* globalObject)
+JSModuleNamespaceObject* AbstractModuleRecord::getModuleNamespace(JSGlobalObject* globalObject, bool shouldPreventExtensions)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -781,9 +783,9 @@ JSModuleNamespaceObject* AbstractModuleRecord::getModuleNamespace(JSGlobalObject
         }
     }
 
-    auto* moduleNamespaceObject = JSModuleNamespaceObject::create(globalObject, globalObject->moduleNamespaceObjectStructure(), this, WTFMove(resolutions));
+    JSModuleNamespaceObject* moduleNamespaceObject = JSModuleNamespaceObject::create(globalObject, globalObject->moduleNamespaceObjectStructure(), this, WTFMove(resolutions), shouldPreventExtensions);
     RETURN_IF_EXCEPTION(scope, nullptr);
-
+ 
     // Materialize *namespace* slot with module namespace object unless the module environment is not yet materialized, in which case we'll do it in setModuleEnvironment
     if (m_moduleEnvironment) {
         bool putResult = false;

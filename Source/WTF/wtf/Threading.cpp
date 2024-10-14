@@ -124,6 +124,8 @@ static std::optional<size_t> stackSize(ThreadType threadType)
 #else
         return 4 * MB;
 #endif
+#elif USE(BUN_JSC_ADDITIONS) && !ASSERT_ENABLED
+    return 512 * KB;
 #else
     UNUSED_PARAM(threadType);
 #endif
@@ -210,7 +212,7 @@ const char* Thread::normalizeThreadName(const char* threadName)
         result = result.right(kLinuxThreadNameLimit);
 #endif
     auto characters = result.span8();
-    ASSERT(characters[characters.size()] == '\0');
+    ASSERT(characters.data()[characters.size()] == '\0');
     return byteCast<char>(characters.data());
 #endif
 }
@@ -518,7 +520,7 @@ void initialize()
 #if PLATFORM(COCOA)
         initializeLibraryPathDiagnostics();
 #endif
-#if USE(WINDOWS_EVENT_LOOP)
+#if USE(WINDOWS_EVENT_LOOP) && !USE(BUN_JSC_ADDITIONS)
         RunLoop::registerRunLoopMessageWindowClass();
 #endif
     });

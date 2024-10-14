@@ -41,12 +41,12 @@ namespace JSC {
 
 class JSGlobalObject;
 
-class JSGlobalObjectDebuggable final : public Inspector::RemoteInspectionTarget {
+class JSGlobalObjectDebuggable : public Inspector::RemoteInspectionTarget {
     WTF_MAKE_TZONE_ALLOCATED(JSGlobalObjectDebuggable);
     WTF_MAKE_NONCOPYABLE(JSGlobalObjectDebuggable);
 public:
     static Ref<JSGlobalObjectDebuggable> create(JSGlobalObject&);
-    ~JSGlobalObjectDebuggable() final { }
+    ~JSGlobalObjectDebuggable() { }
 
     Inspector::RemoteControllableTarget::Type type() const final { return m_type; }
     void setIsITML() { m_type = Inspector::RemoteControllableTarget::Type::ITML; }
@@ -59,12 +59,12 @@ public:
     void dispatchMessageFromRemote(String&& message) final;
 
     bool automaticInspectionAllowed() const final { return true; }
-    void pauseWaitingForAutomaticInspection() final;
+    void pauseWaitingForAutomaticInspection();
 
     void globalObjectDestroyed();
 
-private:
     JSGlobalObjectDebuggable(JSGlobalObject&);
+private:
 
     JSGlobalObject* m_globalObject;
     Inspector::RemoteControllableTarget::Type m_type { Inspector::RemoteControllableTarget::Type::JavaScript };

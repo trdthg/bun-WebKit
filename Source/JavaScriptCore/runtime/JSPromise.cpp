@@ -205,12 +205,37 @@ void JSPromise::resolve(JSGlobalObject* lexicalGlobalObject, JSValue value)
     }
 }
 
+void JSPromise::fulfill(JSGlobalObject* lexicalGlobalObject, JSValue value)
+{
+    ASSERT(!value.inherits<Exception>());
+
+    if (!value.isCell() || !(value.asCell()->type() == JSPromiseType))
+        fulfillWithNonPromise(lexicalGlobalObject, value);
+    else
+        resolve(lexicalGlobalObject, value);
+}
+
+void JSPromise::fulfillWithNonPromise(JSGlobalObject* lexicalGlobalObject, JSValue value)
+{
+    VM& vm = lexicalGlobalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+    uint32_t flags = this->flags();
+    ASSERT_WITH_MESSAGE(!value.inherits<Exception>(), "Promise fulfilled with exception");
+    ASSERT_WITH_MESSAGE(!value.inherits<JSPromise>(), "Promise fulfilled with another promise");
+
+    if (!(flags & isFirstResolvingFunctionCalledFlag)) {
+        ASSERT(internalField(Field::ReactionsOrResult).get().isUndefined());
+        internalField(Field::Flags).set(vm, this, jsNumber(flags | isFirstResolvingFunctionCalledFlag | static_cast<unsigned>(Status::Fulfilled)));
+        internalField(Field::ReactionsOrResult).set(vm, this, value);
+    }
+}
+
 void JSPromise::reject(JSGlobalObject* lexicalGlobalObject, JSValue value)
 {
     VM& vm = lexicalGlobalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
     uint32_t flags = this->flags();
-    ASSERT(!value.inherits<Exception>());
+    ASSERT_WITH_MESSAGE(!value.inherits<Exception>(), "Promise rejected with exception. Use exception.value() instead.");
     if (!(flags & isFirstResolvingFunctionCalledFlag)) {
         internalField(Field::Flags).set(vm, this, jsNumber(flags | isFirstResolvingFunctionCalledFlag));
         JSGlobalObject* globalObject = this->globalObject();
@@ -258,6 +283,20 @@ JSPromise* JSPromise::rejectWithCaughtException(JSGlobalObject* globalObject, Th
     scope.release();
     reject(globalObject, exception->value());
     return this;
+}
+
+JSPromise* JSPromise::rejectedPromiseWithCaughtException(JSGlobalObject* globalObject, ThrowScope& scope)
+{
+    VM& vm = globalObject->vm();
+    Exception* exception = scope.exception();
+    ASSERT(exception);
+    if (UNLIKELY(vm.isTerminationException(exception))) {
+        scope.release();
+        return nullptr;
+    }
+    scope.clearException();
+    scope.release();
+    return rejectedPromise(globalObject, exception->value());
 }
 
 void JSPromise::performPromiseThen(JSGlobalObject* globalObject, JSFunction* onFulFilled, JSFunction* onRejected, JSValue resultCapability)

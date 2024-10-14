@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -32,27 +32,32 @@ namespace WTF {
 
 class ExternalStringImpl;
 
-using ExternalStringImplFreeFunction = Function<void(ExternalStringImpl*, void*, unsigned)>;
+using ExternalStringImplFreeFunction = Function<void(void*, void*, unsigned)>;
 
 class SUPPRESS_REFCOUNTED_WITHOUT_VIRTUAL_DESTRUCTOR ExternalStringImpl final : public StringImpl {
 public:
-    WTF_EXPORT_PRIVATE static Ref<ExternalStringImpl> create(std::span<const LChar> characters, ExternalStringImplFreeFunction&&);
-    WTF_EXPORT_PRIVATE static Ref<ExternalStringImpl> create(std::span<const UChar> characters, ExternalStringImplFreeFunction&&);
+    WTF_EXPORT_PRIVATE static Ref<ExternalStringImpl> create(std::span<const LChar> characters, void* ctx, ExternalStringImplFreeFunction&&);
+    WTF_EXPORT_PRIVATE static Ref<ExternalStringImpl> create(std::span<const UChar> characters, void* ctx, ExternalStringImplFreeFunction&&);
+    WTF_EXPORT_PRIVATE static Ref<ExternalStringImpl> createStatic(std::span<const LChar> characters);
+    WTF_EXPORT_PRIVATE static Ref<ExternalStringImpl> createStatic(std::span<const UChar> characters);
 
 private:
     friend class StringImpl;
 
+    ExternalStringImpl(std::span<const LChar> characters, void* ctx, ExternalStringImplFreeFunction&&);
+    ExternalStringImpl(std::span<const UChar> characters, void* ctx, ExternalStringImplFreeFunction&&);
     ExternalStringImpl(std::span<const LChar> characters, ExternalStringImplFreeFunction&&);
     ExternalStringImpl(std::span<const UChar> characters, ExternalStringImplFreeFunction&&);
 
     inline void freeExternalBuffer(void* buffer, unsigned bufferSize);
 
     ExternalStringImplFreeFunction m_free;
+    void* m_freeCtx;
 };
 
 ALWAYS_INLINE void ExternalStringImpl::freeExternalBuffer(void* buffer, unsigned bufferSize)
 {
-    m_free(this, buffer, bufferSize);
+    m_free(m_freeCtx, buffer, bufferSize);
 }
 
 } // namespace WTF

@@ -1,9 +1,9 @@
 # WebKit dropped MSVC support. This file is only for clang-cl.
 
 function(MSVC_ADD_COMPILE_OPTIONS)
-    foreach (_option ${ARGV})
-        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${_option}>)
-    endforeach ()
+        foreach(_option ${ARGV})
+                add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${_option}>)
+        endforeach()
 endfunction()
 
 # Use AT&T syntax for inline asm
@@ -22,7 +22,7 @@ string(REGEX REPLACE "/EH[-a-z]+" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 MSVC_ADD_COMPILE_OPTIONS(/EHa- /EHc- /EHs- /fp:except-)
 
 # Disable RTTI
-string(REGEX REPLACE "/GR-?" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+string(REGEX REPLACE "/GR-?" "GR-" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 MSVC_ADD_COMPILE_OPTIONS(/GR-)
 
 # We have some very large object files that have to be linked
@@ -36,9 +36,13 @@ add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 # Specify the source code encoding
 MSVC_ADD_COMPILE_OPTIONS(/utf-8 /validate-charset)
 
-if (NOT ${CMAKE_GENERATOR} MATCHES "Ninja")
-    MSVC_ADD_COMPILE_OPTIONS(/MP)
-endif ()
+if(NOT ${CMAKE_GENERATOR} MATCHES "Ninja")
+        MSVC_ADD_COMPILE_OPTIONS(/MP)
+endif()
+
+if(${CMAKE_BUILD_TYPE} MATCHES "Release")
+        add_compile_options(/Oy- /Gw /Gy /GF)
+endif()
 
 # More warnings. /W4 should be specified before -Wno-* options for clang-cl.
 string(REGEX REPLACE "/W3" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})

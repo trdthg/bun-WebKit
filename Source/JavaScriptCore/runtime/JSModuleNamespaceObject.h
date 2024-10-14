@@ -45,11 +45,11 @@ public:
         return vm.moduleNamespaceObjectSpace<mode>();
     }
 
-    static JSModuleNamespaceObject* create(JSGlobalObject* globalObject, Structure* structure, AbstractModuleRecord* moduleRecord, Vector<std::pair<Identifier, AbstractModuleRecord::Resolution>>&& resolutions)
+    static JSModuleNamespaceObject* create(JSGlobalObject* globalObject, Structure* structure, AbstractModuleRecord* moduleRecord, Vector<std::pair<Identifier, AbstractModuleRecord::Resolution>>&& resolutions, bool shouldPreventExtensions = true)
     {
         VM& vm = getVM(globalObject);
         JSModuleNamespaceObject* object = new (NotNull, allocateCell<JSModuleNamespaceObject>(vm)) JSModuleNamespaceObject(vm, structure);
-        object->finishCreation(globalObject, moduleRecord, WTFMove(resolutions));
+        object->finishCreation(globalObject, moduleRecord, WTFMove(resolutions), shouldPreventExtensions);
         return object;
     }
 
@@ -64,13 +64,18 @@ public:
 
     DECLARE_EXPORT_INFO;
 
+#if USE(BUN_JSC_ADDITIONS)
+    bool overrideExportValue(JSGlobalObject*, PropertyName, JSValue);
+    void overrideExports(JSGlobalObject* globalObject, const WTF::Function<bool(JSGlobalObject* globalObject, const Identifier& exportName, JSC::JSValue &result)>& iter);
+#endif
+
     inline static Structure* createStructure(VM&, JSGlobalObject*, JSValue);
 
     AbstractModuleRecord* moduleRecord() { return m_moduleRecord.get(); }
 
 private:
     JS_EXPORT_PRIVATE JSModuleNamespaceObject(VM&, Structure*);
-    JS_EXPORT_PRIVATE void finishCreation(JSGlobalObject*, AbstractModuleRecord*, Vector<std::pair<Identifier, AbstractModuleRecord::Resolution>>&&);
+    JS_EXPORT_PRIVATE void finishCreation(JSGlobalObject*, AbstractModuleRecord*, Vector<std::pair<Identifier, AbstractModuleRecord::Resolution>>&&, bool shouldPreventExtensions);
     DECLARE_VISIT_CHILDREN;
     bool getOwnPropertySlotCommon(JSGlobalObject*, PropertyName, PropertySlot&);
 
@@ -84,6 +89,9 @@ private:
     ExportMap m_exports;
     FixedVector<Identifier> m_names;
     WriteBarrier<AbstractModuleRecord> m_moduleRecord;
+#if USE(BUN_JSC_ADDITIONS)
+    bool m_isOverridingValue = false;
+#endif
 
     friend size_t cellSize(JSCell*);
 };

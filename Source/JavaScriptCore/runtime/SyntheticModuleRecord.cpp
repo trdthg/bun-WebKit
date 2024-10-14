@@ -87,7 +87,6 @@ JSValue SyntheticModuleRecord::evaluate(JSGlobalObject*)
     return jsUndefined();
 }
 
-
 SyntheticModuleRecord* SyntheticModuleRecord::tryCreateWithExportNamesAndValues(JSGlobalObject* globalObject, const Identifier& moduleKey, const Vector<Identifier, 4>& exportNames, const MarkedArgumentBuffer& exportValues)
 {
     VM& vm = globalObject->vm();
@@ -96,7 +95,6 @@ SyntheticModuleRecord* SyntheticModuleRecord::tryCreateWithExportNamesAndValues(
     ASSERT(exportNames.size() == exportValues.size());
 
     auto* moduleRecord = create(globalObject, vm, globalObject->syntheticModuleRecordStructure(), moduleKey);
-
     SymbolTable* exportSymbolTable = SymbolTable::create(vm);
     {
         auto offset = exportSymbolTable->takeNextScopeOffset(NoLockingNecessary);

@@ -31,6 +31,9 @@
 #include "StructureCache.h"
 #include "Watchpoint.h"
 #include "WeakGCSet.h"
+#if USE(BUN_JSC_ADDITIONS)
+#include "InternalFieldTuple.h"
+#endif
 #include <wtf/FixedVector.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/WeakPtr.h>
@@ -227,6 +230,7 @@ public:
     LazyClassStructure m_typeErrorStructure;
     LazyClassStructure m_URIErrorStructure;
     LazyClassStructure m_aggregateErrorStructure;
+    LazyClassStructure m_suppressedErrorStructure;
 
     WriteBarrier<ObjectConstructor> m_objectConstructor;
     WriteBarrier<ArrayConstructor> m_arrayConstructor;
@@ -328,6 +332,10 @@ public:
     WriteBarrierStructureID m_clonedArgumentsStructure;
 
     WriteBarrierStructureID m_objectStructureForObjectConstructor;
+
+#if USE(BUN_JSC_ADDITIONS)
+    WriteBarrierStructureID m_internalFieldTupleStructure;
+#endif
 
     // Lists the actual structures used for having these particular indexing shapes.
     WriteBarrierStructureID m_originalArrayStructureForIndexingShape[NumberOfArrayIndexingModes];
@@ -436,6 +444,11 @@ public:
     String m_name;
 
     Strong<JSObject> m_unhandledRejectionCallback;
+
+#if USE(BUN_JSC_ADDITIONS)
+    bool m_isAsyncContextTrackingEnabled { false };
+    WriteBarrier<InternalFieldTuple> m_asyncContextData;
+#endif
 
     Debugger* m_debugger;
 
@@ -595,6 +608,16 @@ public:
     RuntimeFlags m_runtimeFlags;
     WeakPtr<ConsoleClient> m_consoleClient;
     std::optional<unsigned> m_stackTraceLimit;
+    
+    // Added for "bun test"
+    double overridenDateNow { -1 };
+
+    double jsDateNow() const {
+        if (overridenDateNow > -1)
+            return overridenDateNow;
+        
+        return WTF::jsCurrentTime();
+    }
 
     template<typename T>
     struct WeakCustomGetterOrSetterHash {
@@ -639,6 +662,11 @@ public:
     JS_EXPORT_PRIVATE static JSGlobalObject* createWithCustomMethodTable(VM&, Structure*, const GlobalObjectMethodTable*);
 
     DECLARE_EXPORT_INFO;
+
+#if USE(BUN_JSC_ADDITIONS)
+    bool isAsyncContextTrackingEnabled() const { return m_isAsyncContextTrackingEnabled; }
+    void setAsyncContextTrackingEnabled(bool isEnabled) { m_isAsyncContextTrackingEnabled = isEnabled; }
+#endif
 
     bool hasDebugger() const { return m_debugger; }
     bool hasInteractiveDebugger() const;
@@ -920,6 +948,10 @@ public:
     Structure* plainTimeStructure() { return m_plainTimeStructure.get(this); }
     Structure* timeZoneStructure() { return m_timeZoneStructure.get(this); }
 
+#if USE(BUN_JSC_ADDITIONS)
+    Structure* internalFieldTupleStructure() const { return m_internalFieldTupleStructure.get(); }
+#endif
+
     JS_EXPORT_PRIVATE void setInspectable(bool);
     JS_EXPORT_PRIVATE bool inspectable() const;
 
@@ -1179,6 +1211,7 @@ private:
     void initializeErrorConstructor(LazyClassStructure::Initializer&);
 
     void initializeAggregateErrorConstructor(LazyClassStructure::Initializer&);
+    void initializeSuppressedErrorConstructor(LazyClassStructure::Initializer&);
 
     JS_EXPORT_PRIVATE void init(VM&);
     void initStaticGlobals(VM&);

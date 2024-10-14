@@ -1308,11 +1308,6 @@ void VM::dumpTypeProfilerData()
     typeProfiler()->dumpTypeProfilerData(*this);
 }
 
-void VM::queueMicrotask(QueuedTask&& task)
-{
-    m_microtaskQueue.enqueue(WTFMove(task));
-}
-
 void VM::callPromiseRejectionCallback(Strong<JSPromise>& promise)
 {
     JSObject* callback = promise->globalObject()->unhandledRejectionCallback();
@@ -1334,7 +1329,7 @@ void VM::callPromiseRejectionCallback(Strong<JSPromise>& promise)
 
 void VM::didExhaustMicrotaskQueue()
 {
-    do {
+    while (!m_aboutToBeNotifiedRejectedPromises.isEmpty()) {
         auto unhandledRejections = WTFMove(m_aboutToBeNotifiedRejectedPromises);
         for (auto& promise : unhandledRejections) {
             if (promise->isHandled(*this))
@@ -1344,7 +1339,7 @@ void VM::didExhaustMicrotaskQueue()
             if (UNLIKELY(hasPendingTerminationException()))
                 return;
         }
-    } while (!m_aboutToBeNotifiedRejectedPromises.isEmpty());
+    }
 }
 
 void VM::promiseRejected(JSPromise* promise)
@@ -1379,11 +1374,11 @@ void VM::drainMicrotasks()
 
 void sanitizeStackForVM(VM& vm)
 {
-    auto& thread = Thread::current();
-    auto& stack = thread.stack();
     if (!vm.currentThreadIsHoldingAPILock())
         return; // vm.lastStackTop() may not be set up correctly if JSLock is not held.
 
+    auto& thread = Thread::current();
+    auto& stack = thread.stack();
     logSanitizeStack(vm);
 
     RELEASE_ASSERT(stack.contains(vm.lastStackTop()), 0xaa10, vm.lastStackTop(), stack.origin(), stack.end());

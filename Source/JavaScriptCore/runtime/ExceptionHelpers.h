@@ -46,13 +46,14 @@ JS_EXPORT_PRIVATE JSObject* createError(JSGlobalObject*, JSValue, const String&,
 JS_EXPORT_PRIVATE JSObject* createStackOverflowError(JSGlobalObject*);
 JSObject* createUndefinedVariableError(JSGlobalObject*, const Identifier&);
 JSObject* createTDZError(JSGlobalObject*);
-JSObject* createNotAnObjectError(JSGlobalObject*, JSValue);
+JSObject* createTDZError(JSGlobalObject*, const Identifier&);
+JS_EXPORT_PRIVATE JSObject* createNotAnObjectError(JSGlobalObject*, JSValue);
 JSObject* createInvalidFunctionApplyParameterError(JSGlobalObject*, JSValue);
 JSObject* createInvalidInParameterError(JSGlobalObject*, JSValue);
 JSObject* createInvalidInstanceofParameterErrorNotFunction(JSGlobalObject*, JSValue);
 JSObject* createInvalidInstanceofParameterErrorHasInstanceValueNotFunction(JSGlobalObject*, JSValue);
-JSObject* createNotAConstructorError(JSGlobalObject*, JSValue);
-JSObject* createNotAFunctionError(JSGlobalObject*, JSValue);
+JS_EXPORT_PRIVATE JSObject* createNotAConstructorError(JSGlobalObject*, JSValue);
+JS_EXPORT_PRIVATE JSObject* createNotAFunctionError(JSGlobalObject*, JSValue);
 JSObject* createInvalidPrototypeError(JSGlobalObject*, JSValue);
 JSObject* createErrorForDuplicateGlobalVariableDeclaration(JSGlobalObject*, UniquedStringImpl*);
 JSObject* createErrorForInvalidGlobalFunctionDeclaration(JSGlobalObject*, const Identifier&);

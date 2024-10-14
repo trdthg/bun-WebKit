@@ -974,21 +974,29 @@ template <bool shouldCreateIdentifier> ALWAYS_INLINE JSTokenType Lexer<LChar>::p
     const Identifier* ident = nullptr;
     
     if (shouldCreateIdentifier || m_parsingBuiltinFunction) {
-        std::span identifierSpan { identifierStart, static_cast<size_t>(currentSourcePtr() - identifierStart) };
+        const std::span<const LChar> identifierSpan { identifierStart, static_cast<size_t>(currentSourcePtr() - identifierStart) };
         if (m_parsingBuiltinFunction && isBuiltinName) {
             if (isWellKnownSymbol)
                 ident = &m_arena->makeIdentifier(m_vm, m_vm.propertyNames->builtinNames().lookUpWellKnownSymbol(identifierSpan));
-            else
+            else {
+                if constexpr (ASSERT_ENABLED) {
+                    auto *symbol = m_vm.propertyNames->builtinNames().lookUpPrivateName(identifierSpan);
+                    ASSERT_WITH_MESSAGE(symbol, "Private symbol not found: %s", identifierSpan.data());
+                }
+
                 ident = &m_arena->makeIdentifier(m_vm, m_vm.propertyNames->builtinNames().lookUpPrivateName(identifierSpan));
+            }
             if (!ident)
                 return INVALID_PRIVATE_NAME_ERRORTOK;
         } else {
             ident = makeIdentifier(identifierSpan);
             if (m_parsingBuiltinFunction) {
+#if !USE(BUN_JSC_ADDITIONS)
                 if (!isSafeBuiltinIdentifier(m_vm, ident)) {
                     m_lexErrorMessage = makeString("The use of '"_s, ident->string(), "' is disallowed in builtin functions."_s);
                     return ERRORTOK;
                 }
+#endif
                 if (*ident == m_vm.propertyNames->undefinedKeyword)
                     tokenData->ident = &m_vm.propertyNames->undefinedPrivateName;
             }

@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -28,14 +28,46 @@
 
 namespace WTF {
 
-WTF_EXPORT_PRIVATE Ref<ExternalStringImpl> ExternalStringImpl::create(std::span<const LChar> characters, ExternalStringImplFreeFunction&& free)
+WTF_EXPORT_PRIVATE Ref<ExternalStringImpl> ExternalStringImpl::create(std::span<const LChar> characters, void* context, ExternalStringImplFreeFunction&& free)
 {
-    return adoptRef(*new ExternalStringImpl(characters, WTFMove(free)));
+    return adoptRef(*new ExternalStringImpl(characters, context, WTFMove(free)));
 }
 
-WTF_EXPORT_PRIVATE Ref<ExternalStringImpl> ExternalStringImpl::create(std::span<const UChar> characters, ExternalStringImplFreeFunction&& free)
+WTF_EXPORT_PRIVATE Ref<ExternalStringImpl> ExternalStringImpl::create(std::span<const UChar> characters, void* context, ExternalStringImplFreeFunction&& free)
 {
-    return adoptRef(*new ExternalStringImpl(characters, WTFMove(free)));
+    return adoptRef(*new ExternalStringImpl(characters, context, WTFMove(free)));
+}
+
+
+WTF_EXPORT_PRIVATE Ref<ExternalStringImpl> ExternalStringImpl::createStatic(std::span<const LChar> characters)
+{
+    return adoptRef(*new ExternalStringImpl(characters, nullptr, [](auto, auto, auto) -> void {}));
+}
+
+WTF_EXPORT_PRIVATE Ref<ExternalStringImpl> ExternalStringImpl::createStatic(std::span<const UChar> characters)
+{
+    return adoptRef(*new ExternalStringImpl(characters, nullptr, [](auto, auto, auto) -> void {}));
+}
+
+
+
+ExternalStringImpl::ExternalStringImpl(std::span<const LChar> characters, void* ctx, ExternalStringImplFreeFunction&& free)
+    : StringImpl(characters, ConstructWithoutCopying)
+    , m_free(WTFMove(free))
+{
+    ASSERT(m_free);
+    m_freeCtx = ctx;
+    m_hashAndFlags = (m_hashAndFlags & ~s_hashMaskBufferOwnership) | BufferExternal;
+}
+
+
+ExternalStringImpl::ExternalStringImpl(std::span<const UChar> characters, void* ctx, ExternalStringImplFreeFunction&& free)
+    : StringImpl(characters, ConstructWithoutCopying)
+    , m_free(WTFMove(free))
+{
+    ASSERT(m_free);
+    m_freeCtx = ctx;
+    m_hashAndFlags = (m_hashAndFlags & ~s_hashMaskBufferOwnership) | BufferExternal;
 }
 
 ExternalStringImpl::ExternalStringImpl(std::span<const LChar> characters, ExternalStringImplFreeFunction&& free)
@@ -43,15 +75,21 @@ ExternalStringImpl::ExternalStringImpl(std::span<const LChar> characters, Extern
     , m_free(WTFMove(free))
 {
     ASSERT(m_free);
+    m_freeCtx = nullptr;
     m_hashAndFlags = (m_hashAndFlags & ~s_hashMaskBufferOwnership) | BufferExternal;
+    m_refCount |= s_refCountFlagIsStaticString;
 }
+
 
 ExternalStringImpl::ExternalStringImpl(std::span<const UChar> characters, ExternalStringImplFreeFunction&& free)
     : StringImpl(characters, ConstructWithoutCopying)
     , m_free(WTFMove(free))
 {
     ASSERT(m_free);
+    m_freeCtx = nullptr;
     m_hashAndFlags = (m_hashAndFlags & ~s_hashMaskBufferOwnership) | BufferExternal;
+    m_refCount |= s_refCountFlagIsStaticString;
 }
+
 
 } // namespace WTF

@@ -178,8 +178,13 @@ DeferredWorkTimer::Ticket DeferredWorkTimer::addPendingWork(WorkType type, VM& v
     Ticket ticket = ticketData.ptr();
 
     dataLogLnIf(DeferredWorkTimerInternal::verbose, "Adding new pending ticket: ", RawPointer(ticket));
-    auto result = m_pendingTickets.add(WTFMove(ticketData));
-    RELEASE_ASSERT(result.isNewEntry);
+    if (onAddPendingWork) {
+        onAddPendingWork(WTFMove(ticketData), type);
+    } else {
+        auto result = m_pendingTickets.add(WTFMove(ticketData));
+        RELEASE_ASSERT(result.isNewEntry);
+    }
+    
 
     return ticket;
 }
@@ -204,6 +209,11 @@ bool DeferredWorkTimer::hasDependencyInPendingWork(Ticket ticket, JSCell* depend
 
 void DeferredWorkTimer::scheduleWorkSoon(Ticket ticket, Task&& task)
 {
+    if (onScheduleWorkSoon) {
+        onScheduleWorkSoon(ticket, WTFMove(task));
+        return;
+    }
+
     Locker locker { m_taskLock };
     m_tasks.append(std::make_tuple(ticket, WTFMove(task)));
     if (!isScheduled() && !m_currentlyRunningTask)
@@ -215,7 +225,12 @@ void DeferredWorkTimer::scheduleWorkSoon(Ticket ticket, Task&& task)
 // https://bugs.webkit.org/show_bug.cgi?id=276538
 bool DeferredWorkTimer::cancelPendingWork(Ticket ticket)
 {
-    ASSERT(m_pendingTickets.contains(ticket));
+#if ASSERT_ENABLED
+    if (!onCancelPendingWork) {
+        ASSERT(m_pendingTickets.contains(ticket));
+    }
+#endif
+
     ASSERT(ticket->isCancelled() || ticket->vm().currentThreadIsHoldingAPILock() || (Thread::mayBeGCThread() && ticket->vm().heap.worldIsStopped()));
 
     bool result = false;
@@ -223,6 +238,13 @@ bool DeferredWorkTimer::cancelPendingWork(Ticket ticket)
         dataLogLnIf(DeferredWorkTimerInternal::verbose, "Canceling ticket: ", RawPointer(ticket));
         ticket->cancel();
         result = true;
+
+        // Script execution context is cleared in ->cancel().
+        // But, onCancelPendingWork may dereference the ticket.
+        // So your WTF::Function has to be careful about the ticket.
+        if (onCancelPendingWork) {
+            onCancelPendingWork(ticket);
+        }
     }
 
     return result;

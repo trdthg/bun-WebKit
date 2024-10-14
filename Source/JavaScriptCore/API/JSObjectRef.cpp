@@ -876,4 +876,3 @@ JSGlobalContextRef JSObjectGetGlobalContext(JSObjectRef objectRef)
         return nullptr;
     return reinterpret_cast<JSGlobalContextRef>(object->globalObject());
 }
-

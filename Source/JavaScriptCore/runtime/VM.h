@@ -85,6 +85,8 @@ WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 #include <wtf/text/SymbolImpl.h>
 #include <wtf/text/SymbolRegistry.h>
 
+#include "LineColumn.h"
+
 #if ENABLE(REGEXP_TRACING)
 #include <wtf/ListHashSet.h>
 #endif
@@ -162,6 +164,11 @@ class WatchpointSet;
 class Waiter;
 
 constexpr bool validateDFGDoesGC = ENABLE_DFG_DOES_GC_VALIDATION;
+
+#if USE(BUN_JSC_ADDITIONS)
+using ErrorInfoFunction = WTF::Function<String(VM&, Vector<StackFrame>& stackTrace, unsigned& line, unsigned& column, String& sourceURL)>;
+using ErrorInfoFunctionJSValue = WTF::Function<JSValue(VM&, Vector<StackFrame>& stackTrace, unsigned& line, unsigned& column, String& sourceURL, JSC::JSObject*)>;
+#endif
 
 #if ENABLE(FTL_JIT)
 namespace FTL {
@@ -874,6 +881,7 @@ public:
 
 #if ENABLE(GC_VALIDATION)
     bool isInitializingObject() const; 
+    const ClassInfo* initializingObjectClass() const; 
     void setInitializingObjectClass(const ClassInfo*);
 #endif
 
@@ -911,6 +919,7 @@ public:
     bool enableControlFlowProfiler();
     bool disableControlFlowProfiler();
 
+    void queueMicrotask(QueuedTask&& task) { m_microtaskQueue.enqueue(WTFMove(task)); }
     class JS_EXPORT_PRIVATE DrainMicrotaskDelayScope {
     public:
         explicit DrainMicrotaskDelayScope(VM&);
@@ -929,15 +938,25 @@ public:
     };
 
     DrainMicrotaskDelayScope drainMicrotaskDelayScope() { return DrainMicrotaskDelayScope { *this }; }
-    void queueMicrotask(QueuedTask&&);
     JS_EXPORT_PRIVATE void drainMicrotasks();
     void setOnEachMicrotaskTick(WTF::Function<void(VM&)>&& func) { m_onEachMicrotaskTick = WTFMove(func); }
+
+    WTF::Function<void(VM&, SourceProvider*, LineColumn&)>& computeLineColumnWithSourcemap() { return m_computeLineColumnWithSourcemap; }
+    void setComputeLineColumnWithSourcemap(WTF::Function<void(VM&, SourceProvider*, LineColumn&)>&& func) { m_computeLineColumnWithSourcemap = WTFMove(func); }
+
+#if USE(BUN_JSC_ADDITIONS)
+    const ErrorInfoFunction& onComputeErrorInfo() const { return m_onComputeErrorInfo; }
+    const ErrorInfoFunctionJSValue& onComputeErrorInfoJSValue() const { return m_onComputeErrorInfoJSValue; }
+    void setOnComputeErrorInfo(ErrorInfoFunction&& func) { m_onComputeErrorInfo = WTFMove(func); }
+    void setOnComputeErrorInfoJSValue(ErrorInfoFunctionJSValue&& func) { m_onComputeErrorInfoJSValue = WTFMove(func); }
+#endif
     void finalizeSynchronousJSExecution()
     {
         ASSERT(currentThreadIsHoldingAPILock());
         m_currentWeakRefVersion++;
         setMightBeExecutingTaintedCode(false);
     }
+    
     uintptr_t currentWeakRefVersion() const { return m_currentWeakRefVersion; }
 
     void setGlobalConstRedeclarationShouldThrow(bool globalConstRedeclarationThrow) { m_globalConstRedeclarationShouldThrow = globalConstRedeclarationThrow; }
@@ -1128,6 +1147,11 @@ private:
     Vector<Strong<JSPromise>> m_aboutToBeNotifiedRejectedPromises;
 
     WTF::Function<void(VM&)> m_onEachMicrotaskTick;
+#if USE(BUN_JSC_ADDITIONS)
+    ErrorInfoFunction m_onComputeErrorInfo;
+    ErrorInfoFunctionJSValue m_onComputeErrorInfoJSValue;
+    WTF::Function<void(VM&, SourceProvider*, LineColumn&)> m_computeLineColumnWithSourcemap;
+#endif
     uintptr_t m_currentWeakRefVersion { 0 };
 
     bool m_hasSideData { false };
@@ -1164,6 +1188,11 @@ private:
 };
 
 #if ENABLE(GC_VALIDATION)
+inline const ClassInfo* VM::initializingObjectClass() const
+{
+    return m_initializingObjectClass;
+}
+
 inline bool VM::isInitializingObject() const
 {
     return !!m_initializingObjectClass;

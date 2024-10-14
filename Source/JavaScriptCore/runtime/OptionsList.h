@@ -90,6 +90,10 @@ bool hasCapacityToUseLargeGigacage();
     v(Bool, useDOMJIT, is64Bit(), Normal, "allows the DOMJIT to be used if true"_s) \
     \
     v(Bool, reportMustSucceedExecutableAllocations, false, Normal, nullptr) \
+    /* Bun Features */\
+    v(Bool, useV8DateParser, false, Normal, nullptr) \
+    v(Bool, showPrivateScriptsInStackTraces, false, Normal, "Show private scripts in stack traces."_s) \
+    v(Bool, evalMode, false, Normal, "Set to true for less aggressive function call completion value discarding."_s) \
     \
     v(Unsigned, maxPerThreadStackUsage, 5 * MB, Normal, "Max allowed stack usage by the VM"_s) \
     v(Unsigned, softReservedZoneSize, 128 * KB, Normal, "A buffer greater than reservedZoneSize that reserves space for stringifying exceptions."_s) \
@@ -538,6 +542,7 @@ bool hasCapacityToUseLargeGigacage();
     v(Bool, traceBaselineJITExecution, false, Normal, nullptr) \
     v(Unsigned, thresholdForGlobalLexicalBindingEpoch, UINT_MAX, Normal, "Threshold for global lexical binding epoch. If the epoch reaches to this value, CodeBlock metadata for scope operations will be revised globally. It needs to be greater than 1."_s) \
     v(OptionString, diskCachePath, nullptr, Restricted, nullptr) \
+    v(Bool, verboseDiskCache, false, Normal, "If true, we will log cache hits and misses."_s) \
     v(Bool, forceDiskCache, false, Restricted, nullptr) \
     v(Bool, validateAbstractInterpreterState, false, Restricted, nullptr) \
     v(Double, validateAbstractInterpreterStateProbability, 0.5, Normal, nullptr) \

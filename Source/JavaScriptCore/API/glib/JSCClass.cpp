@@ -132,7 +132,7 @@ static GRefPtr<JSCContext> jscContextForObject(JSC::JSObject* jsObject)
 
 static JSValueRef getProperty(JSContextRef callerContext, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
 {
-    JSC::JSLockHolder locker(toJS(callerContext));
+
     auto* jsObject = toJS(object);
     if (!isWrappedObject(jsObject))
         return nullptr;
@@ -159,7 +159,7 @@ static JSValueRef getProperty(JSContextRef callerContext, JSObjectRef object, JS
 
 static bool setProperty(JSContextRef callerContext, JSObjectRef object, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-    JSC::JSLockHolder locker(toJS(callerContext));
+
     auto* jsObject = toJS(object);
     if (!isWrappedObject(jsObject))
         return false;
@@ -189,7 +189,7 @@ static bool setProperty(JSContextRef callerContext, JSObjectRef object, JSString
 
 static bool hasProperty(JSContextRef callerContext, JSObjectRef object, JSStringRef propertyName)
 {
-    JSC::JSLockHolder locker(toJS(callerContext));
+
     auto* jsObject = toJS(object);
     if (!isWrappedObject(jsObject))
         return false;
@@ -215,7 +215,7 @@ static bool hasProperty(JSContextRef callerContext, JSObjectRef object, JSString
 
 static bool deleteProperty(JSContextRef callerContext, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
 {
-    JSC::JSLockHolder locker(toJS(callerContext));
+
     auto* jsObject = toJS(object);
     if (!isWrappedObject(jsObject))
         return false;
@@ -242,7 +242,7 @@ static bool deleteProperty(JSContextRef callerContext, JSObjectRef object, JSStr
 
 static void getPropertyNames(JSContextRef callerContext, JSObjectRef object, JSPropertyNameAccumulatorRef propertyNames)
 {
-    JSC::JSLockHolder locker(toJS(callerContext));
+
     auto* jsObject = toJS(object);
     if (!isWrappedObject(jsObject))
         return;

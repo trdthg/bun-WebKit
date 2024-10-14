@@ -47,6 +47,7 @@ enum class LinkTimeConstant : int32_t;
     macro(getByIdDirectPrivate) \
     macro(getByValWithThis) \
     macro(getPrototypeOf) \
+    macro(getInternalField) \
     macro(getPromiseInternalField) \
     macro(getGeneratorInternalField) \
     macro(getIteratorHelperInternalField) \
@@ -93,6 +94,7 @@ enum class LinkTimeConstant : int32_t;
     macro(putByValDirect) \
     macro(putByValWithThisSloppy) \
     macro(putByValWithThisStrict) \
+    macro(putInternalField) \
     macro(putPromiseInternalField) \
     macro(putGeneratorInternalField) \
     macro(putAsyncGeneratorInternalField) \

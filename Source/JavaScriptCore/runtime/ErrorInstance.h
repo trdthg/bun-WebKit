@@ -71,6 +71,8 @@ public:
     JS_EXPORT_PRIVATE static ErrorInstance* create(JSGlobalObject*, String&& message, ErrorType, LineColumn, String&& sourceURL, String&& stackString);
     static ErrorInstance* create(JSGlobalObject*, Structure*, JSValue message, JSValue options, SourceAppender = nullptr, RuntimeType = TypeNothing, ErrorType = ErrorType::Error, bool useCurrentFrame = true);
 
+    JS_EXPORT_PRIVATE void captureStackTrace(VM &vm, JSC::JSGlobalObject* globalObject, size_t framesToSkip = 0, bool append = false);
+
     bool hasSourceAppender() const { return !!m_sourceAppender; }
     SourceAppender sourceAppender() const { return m_sourceAppender; }
     void setSourceAppender(SourceAppender appender) { m_sourceAppender = appender; }
@@ -91,6 +93,19 @@ public:
 #if ENABLE(WEBASSEMBLY)
     void setCatchableFromWasm(bool flag) { m_catchableFromWasm = flag; }
     bool isCatchableFromWasm() const { return m_catchableFromWasm; }
+#endif
+
+#if USE(BUN_JSC_ADDITIONS)
+    const String& sourceURL() const { return m_sourceURL; }
+    void setSourceURL(String sourceURL) { m_sourceURL = sourceURL; } 
+
+    unsigned line() const { return m_lineColumn.line; }
+    void setLine(unsigned line) { m_lineColumn.line = line; }
+
+    unsigned column() const { return m_lineColumn.column; }
+    void setColumn(unsigned column) { m_lineColumn.column = column; }
+    void setStackFrames(VM& vm, WTF::Vector<JSC::StackFrame>&& stackFrames);
+
 #endif
 
     JS_EXPORT_PRIVATE String sanitizedToString(JSGlobalObject*);
@@ -119,7 +134,7 @@ protected:
     static bool put(JSCell*, JSGlobalObject*, PropertyName, JSValue, PutPropertySlot&);
     static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName, DeletePropertySlot&);
 
-    void computeErrorInfo(VM&);
+    void computeErrorInfo(VM&, bool allocationAllowed);
 
     SourceAppender m_sourceAppender { nullptr };
     std::unique_ptr<Vector<StackFrame>> m_stackTrace;

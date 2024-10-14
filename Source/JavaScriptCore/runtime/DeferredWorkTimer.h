@@ -104,6 +104,10 @@ public:
     JS_EXPORT_PRIVATE void runRunLoop();
 
     static Ref<DeferredWorkTimer> create(VM& vm) { return adoptRef(*new DeferredWorkTimer(vm)); }
+
+    WTF::Function<void(Ref<TicketData>&&, WorkType)> onAddPendingWork;
+    WTF::Function<void(Ticket, Task&&)> onScheduleWorkSoon;
+    WTF::Function<void(Ticket)> onCancelPendingWork;
 private:
     DeferredWorkTimer(VM&);
 

@@ -47,7 +47,7 @@
 #include <wtf/HexNumber.h>
 #include <wtf/dtoa.h>
 #include <wtf/text/StringBuilder.h>
-
+#include "ObjectConstructorInlines.h"
 namespace JSC {
 
 const ASCIILiteral ObjectProtoCalledOnNullOrUndefinedError { "Object.prototype.__proto__ called on null or undefined"_s };
@@ -845,24 +845,30 @@ JSC_DEFINE_HOST_FUNCTION(globalFuncImportMapStatus, (JSGlobalObject* globalObjec
 JSC_DEFINE_HOST_FUNCTION(globalFuncImportModule, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
-
-    auto* promise = JSPromise::create(vm, globalObject->promiseStructure());
-
     auto scope = DECLARE_THROW_SCOPE(vm);
 
     auto sourceOrigin = callFrame->callerSourceOrigin(vm);
     RELEASE_ASSERT(callFrame->argumentCount() >= 1);
     auto* specifier = callFrame->uncheckedArgument(0).toString(globalObject);
-    RETURN_IF_EXCEPTION(scope, JSValue::encode(promise->rejectWithCaughtException(globalObject, scope)));
+    RETURN_IF_EXCEPTION(scope, JSValue::encode(JSPromise::rejectedPromiseWithCaughtException(globalObject, scope)));
 
     // We always specify parameters as undefined. Once dynamic import() starts accepting fetching parameters,
     // we should retrieve this from the arguments.
     JSValue parameters = callFrame->argument(1);
     auto* internalPromise = globalObject->moduleLoader()->importModule(globalObject, specifier, parameters, sourceOrigin);
-    RETURN_IF_EXCEPTION(scope, JSValue::encode(promise->rejectWithCaughtException(globalObject, scope)));
+    RETURN_IF_EXCEPTION(scope, JSValue::encode(JSPromise::rejectedPromiseWithCaughtException(globalObject, scope)));
 
     scope.release();
-    promise->resolve(globalObject, internalPromise);
+
+    auto* promise = JSPromise::create(vm, globalObject->promiseStructure());
+
+    if (internalPromise->status(vm) == JSPromise::Status::Fulfilled) {
+        auto result = internalPromise->result(vm);
+        promise->fulfill(globalObject, result);
+    } else {
+        promise->resolve(globalObject, internalPromise);
+    }
+
     return JSValue::encode(promise);
 }
 
@@ -1172,4 +1178,4 @@ JSC_DEFINE_HOST_FUNCTION(globalFuncSpeciesGetter, (JSGlobalObject* globalObject,
     return JSValue::encode(callFrame->thisValue().toThis(globalObject, ECMAMode::strict()));
 }
 
-} // namespace JSC
+}

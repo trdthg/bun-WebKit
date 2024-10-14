@@ -71,6 +71,7 @@
 
 #include "config.h"
 #include "JSDateMath.h"
+#include "JSDateMath-v8.h"
 
 #include "ExceptionHelpers.h"
 #include "VM.h"
@@ -88,11 +89,12 @@
 #define U_HIDE_DRAFT_API 1
 
 namespace JSC {
+
 namespace JSDateMathInternal {
 static constexpr bool verbose = false;
 }
 
-#if PLATFORM(COCOA)
+#if PLATFORM(COCOA) || USE(BUN_JSC_ADDITIONS)
 std::atomic<uint64_t> lastTimeZoneID { 1 };
 #endif
 
@@ -160,7 +162,7 @@ LocalTimeOffsetCache* DateCache::DSTCache::leastRecentlyUsed(LocalTimeOffsetCach
         if (result->epoch > cache.epoch)
             result = &cache;
     }
-    *result = LocalTimeOffsetCache { };
+    *result = LocalTimeOffsetCache {};
     return result;
 }
 
@@ -294,7 +296,7 @@ LocalTimeOffset DateCache::DSTCache::localTimeOffset(DateCache& dateCache, int64
     if (m_before->offset == m_after->offset) {
         // Merge two caches if they have the same offset.
         m_before->end = m_after->end;
-        *m_after = LocalTimeOffsetCache { };
+        *m_after = LocalTimeOffsetCache {};
         return m_before->offset;
     }
 
@@ -306,13 +308,13 @@ LocalTimeOffset DateCache::DSTCache::localTimeOffset(DateCache& dateCache, int64
         LocalTimeOffset offset = dateCache.calculateLocalTimeOffset(middle, inputTimeType);
         if (m_before->offset == offset) {
             m_before->end = middle;
-            dataLogLnIf(JSDateMathInternal::verbose, "Cache extended2 from ", m_before->start , " to ", m_before->end, " ", offset.offset, " ", offset.isDST);
+            dataLogLnIf(JSDateMathInternal::verbose, "Cache extended2 from ", m_before->start, " to ", m_before->end, " ", offset.offset, " ", offset.isDST);
             if (millisecondsFromEpoch <= m_before->end)
                 return offset;
         } else {
             ASSERT(m_after->offset == offset);
             m_after->start = middle;
-            dataLogLnIf(JSDateMathInternal::verbose, "Cache extended3 from ", m_after->start , " to ", m_after->end, " ", offset.offset, " ", offset.isDST);
+            dataLogLnIf(JSDateMathInternal::verbose, "Cache extended3 from ", m_after->start, " to ", m_after->end, " ", offset.offset, " ", offset.isDST);
             if (millisecondsFromEpoch >= m_after->start) {
                 // This swap helps the optimistic fast check in subsequent invocations.
                 std::swap(m_before, m_after);
@@ -321,7 +323,7 @@ LocalTimeOffset DateCache::DSTCache::localTimeOffset(DateCache& dateCache, int64
         }
     }
 
-    return { };
+    return {};
 }
 
 double DateCache::gregorianDateTimeToMS(const GregorianDateTime& t, double milliseconds, WTF::TimeType inputTimeType)
@@ -356,7 +358,7 @@ std::tuple<int32_t, int32_t, int32_t> DateCache::yearMonthDayFromDaysWithCache(i
             return std::tuple { year, month, newDay };
         }
     }
-    auto [ year, month, day ] = WTF::yearMonthDayFromDays(days);
+    auto [year, month, day] = WTF::yearMonthDayFromDays(days);
     m_yearMonthDayCache = { days, year, month, day };
     return std::tuple { year, month, day };
 }
@@ -406,6 +408,15 @@ double DateCache::parseDate(JSGlobalObject* globalObject, VM& vm, const String& 
     }
 
     auto parseDateImpl = [this] (auto dateString) {
+        if (Options::useV8DateParser()) {
+            bool local = false;
+            double value = v8::ParseDateTimeString(dateString.data(), dateString.size(), local);
+
+            if (local)
+                value -= localTimeOffset(static_cast<int64_t>(value), WTF::LocalTime).offset;
+
+            return v8::TimeClip(value);
+        }
         bool isLocalTime;
         double value = WTF::parseES5Date(dateString, isLocalTime);
         if (std::isnan(value))

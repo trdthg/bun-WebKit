@@ -32,7 +32,6 @@
 #error "Please #include <wtf/Platform.h> instead of this file directly."
 #endif
 
-
 #define ENABLE(WTF_FEATURE) (defined ENABLE_##WTF_FEATURE && ENABLE_##WTF_FEATURE)
 
 /* Use this file to list _all_ ENABLE() macros. Define the macros to be one of the following values:
@@ -55,7 +54,6 @@
  * Get the list of features enabled by default for a PLATFORM(XXX): gcc -E -dM -I. -DWTF_PLATFORM_XXX "wtf/Platform.h" | grep "ENABLE_\w\+ 1" | cut -d' ' -f2 | sort
  */
 
-
 /* FIXME: This should be renamed to ENABLE_ASSERTS for consistency and so it can be used as ENABLE(ASSERTS). */
 /* ASSERT_ENABLED should be true if we want the current compilation unit to
    do debug assertion checks unconditionally (e.g. treat a debug ASSERT
@@ -69,14 +67,11 @@
 #endif
 #endif
 
-
 /* ==== Platform additions: additions to PlatformEnable.h from outside the main repository ==== */
 
 #if USE(APPLE_INTERNAL_SDK) && __has_include(<WebKitAdditions/AdditionalFeatureDefines.h>)
 #include <WebKitAdditions/AdditionalFeatureDefines.h>
 #endif
-
-
 
 /* ==== Platform specific defaults ==== */
 
@@ -619,15 +614,14 @@
 #define ENABLE_UNPREFIXED_BACKDROP_FILTER 0
 #endif
 
-
 /* FIXME: This section of the file has not been cleaned up yet and needs major work. */
 
 /* FIXME: JSC_OBJC_API_ENABLED does not match the normal ENABLE naming convention. */
-#if !PLATFORM(COCOA)
-#if !defined(JSC_OBJC_API_ENABLED)
+// #if !PLATFORM(COCOA)
+// #if !defined(JSC_OBJC_API_ENABLED)
 #define JSC_OBJC_API_ENABLED 0
-#endif
-#endif
+// #endif
+// #endif
 
 /* wyhash-based StringHasher */
 #if !defined(ENABLE_WYHASH_STRING_HASHER) && PLATFORM(MAC)

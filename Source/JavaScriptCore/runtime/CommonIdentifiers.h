@@ -120,6 +120,7 @@
     macro(enumerable) \
     macro(era) \
     macro(eraYear) \
+    macro(error) \
     macro(errors) \
     macro(eval) \
     macro(events) \
@@ -269,6 +270,7 @@
     macro(style) \
     macro(subarray) \
     macro(summary) \
+    macro(suppressed) \
     macro(target) \
     macro(test) \
     macro(then) \
@@ -372,7 +374,10 @@
     macro(split) \
     macro(toPrimitive) \
     macro(toStringTag) \
-    macro(unscopables)
+    macro(unscopables) \
+    macro(dispose) \
+    macro(asyncDispose)
+
 
 #define JSC_PARSER_PRIVATE_NAMES(macro) \
     macro(generator) \

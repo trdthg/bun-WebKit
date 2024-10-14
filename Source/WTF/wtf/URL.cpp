@@ -226,6 +226,55 @@ static String decodeEscapeSequencesFromParsedURL(StringView input)
     return String::fromUTF8(percentDecoded.span());
 }
 
+// This decodes url escape sequences and also converts / into \ for the Windows
+// port of URL::fileSystemPath(). It is done here to avoid a second copy when url
+// escapes AND slashes are present in the file. The check to skip copying is not
+// done as every valid absolute file path on Windows will include a slash.
+template<typename CharacterType>
+static String decodeEscapeSequencesFromParsedURLForWindowsPath(const std::span<const CharacterType> input)
+{
+    size_t length = input.size();
+
+    if (WTF::find(input, '%') == notFound) {
+        WTF::StringBuilder builder;
+        builder.reserveCapacity(length);
+        // Fast path: no escape sequences.
+        // That also means we don't have to worry about non-ASCII characters.
+        // We just need to normalize slashes.
+        size_t lastSlash = input[0] == '/' ? 1 : 0;
+        size_t index = WTF::find(input, '/', lastSlash);
+        while (index != notFound) {
+            ASSERT(index < length);
+            builder.append(input.subspan(lastSlash, index - lastSlash));
+            builder.append('\\');
+            lastSlash = index + 1;
+            index = WTF::find(input, '/', lastSlash);
+        }
+
+        ASSERT(lastSlash <= length);
+        builder.append(input.subspan(lastSlash));
+        return builder.toString();
+    }
+
+    Vector<LChar, 256> percentDecodedUTF8;
+    percentDecodedUTF8.reserveInitialCapacity(length);
+    WTF::StringView inputView = input;
+    for (size_t i = input[0] == '/' ? 1 : 0; i < length; ) {
+        if (auto decodedCharacter = decodeEscapeSequence(inputView, i, length)) {
+            percentDecodedUTF8.append(*decodedCharacter);
+            i += 3;
+        } else if (input[i] != '/') {
+            percentDecodedUTF8.append(input[i]);
+            ++i;
+        } else {
+            percentDecodedUTF8.append('\\');
+            ++i;
+        }
+    }   
+
+    return String::fromUTF8ReplacingInvalidSequences(percentDecodedUTF8.span());
+}
+
 String URL::user() const
 {
     return decodeEscapeSequencesFromParsedURL(encodedUser());
@@ -286,17 +335,30 @@ URL URL::truncatedForUseAsBase() const
 
 #if !USE(CF)
 
+#if OS(WINDOWS)
+static inline String fileSystemPathWindows(WTF::StringView host, WTF::StringView path)
+{
+    ASSERT(path.containsOnlyASCII());
+
+    // UNC paths look like '\\server\share\etc', but in a URL they look like 'file://server/share/etc'.
+    String decodedPath = path.is8Bit() ? decodeEscapeSequencesFromParsedURLForWindowsPath<LChar>(path.span8()) : decodeEscapeSequencesFromParsedURLForWindowsPath<UChar>(path.span16());   
+    if (UNLIKELY(host.length() > 0)) {
+        return makeString("\\\\"_s, host, "\\"_s, decodedPath);
+    }
+    return decodedPath;
+}
+#endif
+
 String URL::fileSystemPath() const
 {
     if (!protocolIsFile())
         return { };
 
-    auto result = decodeEscapeSequencesFromParsedURL(path());
-#if PLATFORM(WIN)
-    if (result.startsWith('/'))
-        result = result.substring(1);
+#if OS(WINDOWS)
+    return fileSystemPathWindows(host(), path());
+#else
+    return decodeEscapeSequencesFromParsedURL(path());
 #endif
-    return result;
 }
 
 #endif
@@ -1140,8 +1202,25 @@ URL URL::fakeURLWithRelativePart(StringView relativePart)
     return URL(makeString("webkit-fake-url://"_s, UUID::createVersion4(), '/', relativePart));
 }
 
+#if OS(WINDOWS)
+template <typename CharacterType>
+ALWAYS_INLINE bool isUNCLikePathImpl(CharacterType data) {
+    return (data[0] == '\\' || data[0] == '/') && (data[1] == '\\' || data[1] == '/');
+}
+ALWAYS_INLINE bool isUNCLikePath(StringView path)
+{
+    return path.length() > 2 && (path.is8Bit() ? isUNCLikePathImpl(path.span8().data()) : isUNCLikePathImpl(path.span16().data()));
+}
+#endif // OS(WINDOWS)
+
 URL URL::fileURLWithFileSystemPath(StringView path)
 {
+#if OS(WINDOWS)
+    // Handle UNC paths on Windows. should result in file://server/share
+    if (isUNCLikePath(path)) {
+        return URL(makeString("file://"_s, escapePathWithoutCopying(path.substring(2))));
+    }
+#endif
     return URL(makeString(
         "file://"_s,
         path.startsWith('/') ? ""_s : "/"_s,

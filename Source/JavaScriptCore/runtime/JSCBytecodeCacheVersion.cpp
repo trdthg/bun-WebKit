@@ -48,8 +48,24 @@ namespace JSCBytecodeCacheVersionInternal {
 static constexpr bool verbose = false;
 }
 
+static uint32_t byteCodeCacheVersion = 0;
+
+void dangerouslyOverrideJSCBytecodeCacheVersion(uint32_t version)
+{
+    byteCodeCacheVersion = version;
+}
+
 uint32_t computeJSCBytecodeCacheVersion()
 {
+#if USE(BUN_JSC_ADDITIONS)
+    if (byteCodeCacheVersion != 0) {
+        return byteCodeCacheVersion;
+    }
+
+    static constexpr uint32_t precomputedCacheVersion = SuperFastHash::computeHash(__TIMESTAMP__);
+    byteCodeCacheVersion = precomputedCacheVersion;
+    return precomputedCacheVersion;
+#else
     UNUSED_VARIABLE(JSCBytecodeCacheVersionInternal::verbose);
     static LazyNeverDestroyed<uint32_t> cacheVersion;
     static std::once_flag onceFlag;
@@ -155,6 +171,7 @@ uint32_t computeJSCBytecodeCacheVersion()
 #endif
     });
     return cacheVersion.get();
+#endif
 }
 
 } // namespace JSC

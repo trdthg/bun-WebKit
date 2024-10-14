@@ -447,7 +447,11 @@ public:
                     break;
                 }
                 }
+#if USE(ALLOW_LINE_AND_COLUMN_NUMBER_IN_BUILTINS)
+            } else if (!!visitor->codeBlock())
+#else
             } else if (!!visitor->codeBlock() && !visitor->codeBlock()->unlinkedCodeBlock()->isBuiltinFunction())
+#endif
                 m_results[m_frameCountInResults++] = StackFrame(m_vm, m_owner, visitor->callee().asCell(), visitor->codeBlock(), visitor->bytecodeIndex());
             else
                 m_results[m_frameCountInResults++] = StackFrame(m_vm, m_owner, visitor->callee().asCell());
@@ -1064,7 +1068,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, JSGlobalObject*, J
                     PropertySlot slot(scope, PropertySlot::InternalMethodType::Get);
                     JSGlobalLexicalEnvironment::getOwnPropertySlot(scope, globalObject, ident, slot);
                     if (slot.getValue(globalObject, ident) == jsTDZValue())
-                        return throwException(globalObject, throwScope, createTDZError(globalObject));
+                        return throwException(globalObject, throwScope, createTDZError(globalObject, ident));
                     baseObject = scope;
                 }
             }

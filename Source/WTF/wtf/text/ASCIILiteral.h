@@ -55,6 +55,11 @@ public:
         return ASCIILiteral { string };
     }
 
+    static constexpr ASCIILiteral fromLiteralUnsafe(std::span<const char> nullTerminatedString)
+    {
+        return ASCIILiteral { nullTerminatedString };
+    }
+
     WTF_EXPORT_PRIVATE void dump(PrintStream& out) const;
 
     ASCIILiteral() = default;
@@ -74,7 +79,7 @@ public:
     constexpr char operator[](size_t index) const { return m_charactersWithNullTerminator[index]; }
     constexpr char characterAt(size_t index) const { return m_charactersWithNullTerminator[index]; }
 
-#ifdef __OBJC__
+#if defined(__OBJC__) && !USE(BUN_JSC_ADDITIONS)
     // This function convert null strings to empty strings.
     WTF_EXPORT_PRIVATE RetainPtr<NSString> createNSString() const;
 #endif
@@ -91,6 +96,16 @@ private:
         ASSERT_UNDER_CONSTEXPR_CONTEXT(isASCII(m_charactersWithNullTerminator[i]));
 #endif
     }
+
+    constexpr explicit ASCIILiteral(std::span<const char> characters)
+        : m_charactersWithNullTerminator(characters)
+    {
+#if ASSERT_ENABLED
+    for (size_t i = 0; i < length(); ++i)
+        ASSERT_UNDER_CONSTEXPR_CONTEXT(isASCII(m_charactersWithNullTerminator[i]));
+#endif
+    }
+
 
     std::span<const char> m_charactersWithNullTerminator;
 };

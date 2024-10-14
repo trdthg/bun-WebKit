@@ -33,14 +33,19 @@
 #include "JSGlobalObject.h"
 
 #include "AggregateError.h"
+#include "SuppressedError.h"
+#include "InternalFieldTuple.h"
 #include "AggregateErrorConstructorInlines.h"
+#include "SuppressedErrorConstructorInlines.h"
 #include "AggregateErrorPrototypeInlines.h"
+#include "SuppressedErrorPrototypeInlines.h"
 #include "ArrayConstructorInlines.h"
 #include "ArrayIteratorPrototypeInlines.h"
 #include "ArrayPrototypeInlines.h"
 #include "AsyncFromSyncIteratorPrototypeInlines.h"
 #include "AsyncFunctionConstructorInlines.h"
 #include "AsyncFunctionPrototypeInlines.h"
+// >>>>>>> upstream/main
 #include "AsyncGeneratorFunctionConstructor.h"
 #include "AsyncGeneratorFunctionPrototypeInlines.h"
 #include "AsyncGeneratorPrototypeInlines.h"
@@ -656,6 +661,7 @@ const GlobalObjectMethodTable* JSGlobalObject::baseGlobalObjectMethodTable()
   TypeError             JSGlobalObject::m_typeErrorStructure         DontEnum|ClassStructure
   URIError              JSGlobalObject::m_URIErrorStructure          DontEnum|ClassStructure
   AggregateError        JSGlobalObject::m_aggregateErrorStructure    DontEnum|ClassStructure
+  SuppressedError       JSGlobalObject::m_suppressedErrorStructure   DontEnum|ClassStructure
   Proxy                 createProxyProperty                          DontEnum|PropertyCallback
   Reflect               createReflectProperty                        DontEnum|PropertyCallback
   JSON                  createJSONProperty                           DontEnum|PropertyCallback
@@ -810,6 +816,13 @@ void JSGlobalObject::initializeAggregateErrorConstructor(LazyClassStructure::Ini
     init.setPrototype(AggregateErrorPrototype::create(init.vm, AggregateErrorPrototype::createStructure(init.vm, this, m_errorStructure.prototype(this))));
     init.setStructure(ErrorInstance::createStructure(init.vm, this, init.prototype));
     init.setConstructor(AggregateErrorConstructor::create(init.vm, AggregateErrorConstructor::createStructure(init.vm, this, m_errorStructure.constructor(this)), jsCast<AggregateErrorPrototype*>(init.prototype)));
+}
+
+void JSGlobalObject::initializeSuppressedErrorConstructor(LazyClassStructure::Initializer& init)
+{
+    init.setPrototype(SuppressedErrorPrototype::create(init.vm, SuppressedErrorPrototype::createStructure(init.vm, this, m_errorStructure.prototype(this))));
+    init.setStructure(ErrorInstance::createStructure(init.vm, this, init.prototype));
+    init.setConstructor(SuppressedErrorConstructor::create(init.vm, SuppressedErrorConstructor::createStructure(init.vm, this, m_errorStructure.constructor(this)), jsCast<SuppressedErrorPrototype*>(init.prototype)));
 }
 
 SUPPRESS_ASAN inline void JSGlobalObject::initStaticGlobals(VM& vm)
@@ -1251,6 +1264,10 @@ capitalName ## Constructor* lowerName ## Constructor = featureFlag ? capitalName
     m_aggregateErrorStructure.initLater(
         [] (LazyClassStructure::Initializer& init) {
             init.global->initializeAggregateErrorConstructor(init);
+        });
+    m_suppressedErrorStructure.initLater(
+        [] (LazyClassStructure::Initializer& init) {
+            init.global->initializeSuppressedErrorConstructor(init);
         });
 
     m_generatorFunctionPrototype.set(vm, this, GeneratorFunctionPrototype::create(vm, GeneratorFunctionPrototype::createStructure(vm, this, m_functionPrototype.get())));
@@ -1814,6 +1831,22 @@ capitalName ## Constructor* lowerName ## Constructor = featureFlag ? capitalName
     m_linkTimeConstants[static_cast<unsigned>(LinkTimeConstant::emptyPropertyNameEnumerator)].initLater([] (const Initializer<JSCell>& init) {
         init.set(init.vm.emptyPropertyNameEnumerator());
     });
+
+#if USE(BUN_JSC_ADDITIONS)
+    // Link Time Constant would be faster, but it seems OpGetInternalField does not expect having a linkTimeConstant,
+    // so `@getInternalField(@asyncContext, 0)` will crash. If we can read/write to the internal field from JS in a better way, that could improve perf.
+    // m_linkTimeConstants[static_cast<unsigned>(LinkTimeConstant::asyncContext)].initLater([](const Initializer<JSCell>& init) {
+    //     auto* globalObject = jsCast<JSGlobalObject*>(init.owner);
+    //     init.set(AsyncContext::create(init.vm, AsyncContext::createStructure(init.vm, globalObject, globalObject->objectPrototype())));
+    // });
+    m_internalFieldTupleStructure.set(vm, this, InternalFieldTuple::createStructure(vm, this));
+
+    InternalFieldTuple* asyncContext = InternalFieldTuple::create(vm, internalFieldTupleStructure(), jsUndefined(), jsUndefined());
+    putDirectWithoutTransition(
+        vm, vm.propertyNames->builtinNames().asyncContextPrivateName(),
+        asyncContext, PropertyAttribute::DontEnum | PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly);
+    m_asyncContextData.set(vm, this, asyncContext);
+#endif
 
     m_performProxyObjectHasFunction.set(vm, this, jsCast<JSFunction*>(linkTimeConstant(LinkTimeConstant::performProxyObjectHas)));
     m_performProxyObjectHasByValFunction.set(vm, this, jsCast<JSFunction*>(linkTimeConstant(LinkTimeConstant::performProxyObjectHasByVal)));
@@ -2539,6 +2572,11 @@ void JSGlobalObject::visitChildrenImpl(JSCell* cell, Visitor& visitor)
 
     visitor.append(thisObject->m_globalThis);
 
+#if USE(BUN_JSC_ADDITIONS)
+    visitor.append(thisObject->m_asyncContextData);
+    visitor.append(thisObject->m_internalFieldTupleStructure);
+#endif
+
     visitor.append(thisObject->m_globalLexicalEnvironment);
     visitor.append(thisObject->m_globalScopeExtension);
     visitor.append(thisObject->m_globalCallee);
@@ -2551,6 +2589,7 @@ void JSGlobalObject::visitChildrenImpl(JSCell* cell, Visitor& visitor)
     thisObject->m_typeErrorStructure.visit(visitor);
     thisObject->m_URIErrorStructure.visit(visitor);
     thisObject->m_aggregateErrorStructure.visit(visitor);
+    thisObject->m_suppressedErrorStructure.visit(visitor);
     visitor.append(thisObject->m_arrayConstructor);
     visitor.append(thisObject->m_shadowRealmConstructor);
     visitor.append(thisObject->m_regExpConstructor);

@@ -422,7 +422,7 @@ BytecodeGenerator::BytecodeGenerator(VM& vm, FunctionNode* functionNode, Unlinke
     , m_scopeNode(functionNode)
     , m_codeType(FunctionCode)
     , m_vm(vm)
-    , m_defaultAllowCallIgnoreResultOptimization(true)
+    , m_defaultAllowCallIgnoreResultOptimization(!Options::evalMode())
     // FIXME: This should be a flag
     , m_usesExceptions(false)
     , m_expressionTooDeep(false)
@@ -996,7 +996,7 @@ BytecodeGenerator::BytecodeGenerator(VM& vm, ModuleProgramNode* moduleProgramNod
     , m_thisRegister(CallFrame::thisArgumentOffset())
     , m_codeType(ModuleCode)
     , m_vm(vm)
-    , m_defaultAllowCallIgnoreResultOptimization(true)
+    , m_defaultAllowCallIgnoreResultOptimization(!Options::evalMode())
     , m_usesExceptions(false)
     , m_expressionTooDeep(false)
     , m_isBuiltinFunction(false)
@@ -3053,7 +3053,7 @@ void BytecodeGenerator::emitCheckPrivateBrand(RegisterID* base, RegisterID* bran
 {
     if (isStatic) {
         Ref<Label> brandCheckOkLabel = newLabel();
-        OpCheckTdz::emit(this, brand);
+        emitTDZCheck(brand);
         emitJumpIfTrue(emitEqualityOp<OpStricteq>(newTemporary(), base, brand), brandCheckOkLabel.get());
         emitThrowTypeError("Cannot access static private method or accessor"_s);
         emitLabel(brandCheckOkLabel.get());
@@ -3140,9 +3140,14 @@ RegisterID* BytecodeGenerator::emitInstanceFieldInitializationIfNeeded(RegisterI
     return dst;
 }
 
+void BytecodeGenerator::emitTDZCheck(RegisterID* target, const Variable& variable)
+{
+    OpCheckTdz::emit(this, target, addConstantValue(addStringConstant(variable.ident())));
+}
+
 void BytecodeGenerator::emitTDZCheck(RegisterID* target)
 {
-    OpCheckTdz::emit(this, target);
+    OpCheckTdz::emit(this, target, addConstantValue(jsUndefined()));
 }
 
 bool BytecodeGenerator::needsTDZCheck(const Variable& variable)
@@ -3169,11 +3174,11 @@ void BytecodeGenerator::emitTDZCheckIfNecessary(const Variable& variable, Regist
 {
     if (needsTDZCheck(variable)) {
         if (target)
-            emitTDZCheck(target);
+            emitTDZCheck(target, variable);
         else {
             RELEASE_ASSERT(!variable.isLocal() && scope);
             RefPtr<RegisterID> result = emitGetFromScope(newTemporary(), scope, variable, DoNotThrowIfNotFound);
-            emitTDZCheck(result.get());
+            emitTDZCheck(result.get(), variable);
         }
     }
 }
