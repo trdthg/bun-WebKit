@@ -335,12 +335,12 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
 {
     if (m_errorInfoMaterialized)
         return false;
-    m_errorInfoMaterialized = true;
 
 #if USE(BUN_JSC_ADDITIONS)
 
     auto& fn = vm.onComputeErrorInfoJSValue();
     if (fn && m_stackTrace && !m_stackTrace->isEmpty()) {
+        m_errorInfoMaterialized = true;
         DeferGCForAWhile deferGC(vm);
 
         JSValue stack = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL, this);
@@ -375,6 +375,7 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
             putDirect(vm, vm.propertyNames->sourceURL, jsString(vm, WTFMove(m_sourceURL)), attributes);
 
         putDirect(vm, vm.propertyNames->stack, jsString(vm, WTFMove(m_stackString)), attributes);
+        m_errorInfoMaterialized = true;
     }
 
     return true;
