@@ -317,6 +317,7 @@ void ErrorInstance::computeErrorInfo(VM& vm, bool allocationAllowed)
     // Here we use DeferGCForAWhile instead of DeferGC since GC's Heap::runEndPhase can trigger this function. In
     // that case, DeferGC's destructor might trigger another GC cycle which is unexpected.
     DeferGCForAWhile deferGC(vm);
+    UNUSED_PARAM(allocationAllowed);
 
     if (m_stackTrace && !m_stackTrace->isEmpty()) {
         auto& fn = vm.onComputeErrorInfo();
@@ -334,6 +335,7 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
 {
     if (m_errorInfoMaterialized)
         return false;
+    m_errorInfoMaterialized = true;
 
 #if USE(BUN_JSC_ADDITIONS)
 
@@ -342,7 +344,12 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
         DeferGCForAWhile deferGC(vm);
 
         JSValue stack = fn(vm, *m_stackTrace.get(), m_lineColumn.line, m_lineColumn.column, m_sourceURL, this);
-        m_stackTrace = nullptr;
+
+        {
+            Locker locker { cellLock() };
+            m_stackTrace->clear();
+            m_stackTrace = nullptr;
+        }
 
         auto attributes = static_cast<unsigned>(PropertyAttribute::DontEnum);
 
@@ -352,11 +359,11 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
             putDirect(vm, vm.propertyNames->sourceURL, jsString(vm, WTFMove(m_sourceURL)), attributes);
 
         putDirect(vm, vm.propertyNames->stack, stack, attributes);
-        m_errorInfoMaterialized = true;
         return true;
     }
 
 #endif
+
     computeErrorInfo(vm, true);
 
     if (!m_stackString.isNull()) {
@@ -370,7 +377,6 @@ bool ErrorInstance::materializeErrorInfoIfNeeded(VM& vm)
         putDirect(vm, vm.propertyNames->stack, jsString(vm, WTFMove(m_stackString)), attributes);
     }
 
-    m_errorInfoMaterialized = true;
     return true;
 }
 

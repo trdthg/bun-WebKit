@@ -105,6 +105,7 @@ public:
     unsigned column() const { return m_lineColumn.column; }
     void setColumn(unsigned column) { m_lineColumn.column = column; }
     void setStackFrames(VM& vm, WTF::Vector<JSC::StackFrame>&& stackFrames);
+    bool hasMaterializedErrorInfo() const { return m_errorInfoMaterialized; }
 
 #endif
 
